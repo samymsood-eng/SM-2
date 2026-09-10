@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Product, Language, Page } from '../../types';
 import { translations } from '../../i18n/translations';
 import { ProductReviewsModal } from '../modals/ProductReviewsModal';
+import { ProductSlider } from '../ProductSlider';
 import {
   Download,
   Star,
@@ -117,10 +118,10 @@ export const SalesPage: React.FC<SalesPageProps> = ({
             </button>
             <button
               id="hero-explore-docs-btn"
-              onClick={() => setCurrentPage('docs')}
+              onClick={() => setCurrentPage('developer')}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-lg border border-neutral-300 dark:border-neutral-700 hover:border-neutral-900 dark:hover:border-neutral-200 text-neutral-800 dark:text-neutral-200 text-sm font-semibold transition-colors"
             >
-              <span>{t.common.docsLink}</span>
+              <span>{t.nav.developer}</span>
             </button>
           </div>
 
@@ -151,6 +152,29 @@ export const SalesPage: React.FC<SalesPageProps> = ({
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Interactive Showcase Slider Section (عرض شرائح تفاعلي للمنتجات) */}
+        <section id="interactive-slider-section" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              <h2 className="font-serif text-xl sm:text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+                {language === 'ar' ? 'العرض الحي التفاعلي للبرمجيات' : 'Interactive Software Highlights'}
+              </h2>
+            </div>
+            <span className="text-xs text-neutral-500 dark:text-neutral-400">
+              {language === 'ar' ? 'تبديل تلقائي وتصفح للصور والمميزات' : 'Auto-sliding features & gallery'}
+            </span>
+          </div>
+
+          <ProductSlider
+            products={products}
+            language={language}
+            onSelectProduct={openProductDetails}
+            onDirectDownload={onSelectDownload}
+            setCurrentPage={setCurrentPage}
+          />
         </section>
 
         {/* Products Showcase Grid (صفحة عرض المبيعات) */}

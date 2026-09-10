@@ -112,33 +112,33 @@ export const HomePage: React.FC<HomePageProps> = ({
             {t.home.heroSubtitle}
           </p>
 
-          <div className="flex flex-wrap items-center justify-center gap-3.5 pt-3">
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center justify-center gap-3 pt-3 px-2 w-full max-w-lg mx-auto">
             <button
               id="home-hero-downloads-btn"
               onClick={() => setCurrentPage('downloads')}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-white text-sm font-semibold shadow-sm transition-all"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 sm:py-3 rounded-xl bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-white text-sm font-semibold shadow-sm transition-all active:scale-95"
             >
-              <Download className="w-4 h-4" />
-              <span>{t.home.exploreAllDownloads}</span>
-              {isRtl ? <ArrowLeft className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
+              <Download className="w-4 h-4 shrink-0" />
+              <span className="whitespace-nowrap">{t.home.exploreAllDownloads}</span>
+              {isRtl ? <ArrowLeft className="w-4 h-4 shrink-0" /> : <ArrowRight className="w-4 h-4 shrink-0" />}
             </button>
 
             <button
               id="home-hero-sales-btn"
               onClick={() => setCurrentPage('sales')}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-lg border border-neutral-300 dark:border-neutral-700 hover:border-neutral-900 dark:hover:border-neutral-200 text-neutral-800 dark:text-neutral-200 text-sm font-semibold transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3.5 sm:py-3 rounded-xl border border-neutral-300 dark:border-neutral-700 hover:border-neutral-900 dark:hover:border-neutral-200 text-neutral-800 dark:text-neutral-200 text-sm font-semibold transition-colors bg-white/80 dark:bg-neutral-900/80 active:scale-95"
             >
-              <ShoppingBag className="w-4 h-4" />
-              <span>{t.nav.sales}</span>
+              <ShoppingBag className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <span className="whitespace-nowrap">{t.nav.sales}</span>
             </button>
 
             <button
               id="home-hero-github-btn"
               onClick={onOpenGithubModal}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-lg border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800/60 hover:bg-neutral-200 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-semibold transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3.5 sm:py-3 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800/60 hover:bg-neutral-200 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300 text-sm font-semibold transition-colors active:scale-95"
             >
-              <Github className="w-4 h-4" />
-              <span>GitHub API</span>
+              <Github className="w-4 h-4 shrink-0" />
+              <span className="whitespace-nowrap">GitHub API</span>
             </button>
           </div>
 
@@ -264,10 +264,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                     </div>
 
                     {/* SHA-256 Checksum with One-click Copy */}
-                    <div className="p-2.5 rounded-lg bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 flex items-center justify-between gap-2 text-[11px]">
-                      <div className="truncate font-mono text-neutral-600 dark:text-neutral-400">
+                    <div className="p-2.5 rounded-lg bg-neutral-50 dark:bg-neutral-950 border border-neutral-200 dark:border-neutral-800 flex items-center justify-between gap-2 text-[11px] max-w-full overflow-hidden">
+                      <div className="truncate font-mono text-neutral-600 dark:text-neutral-400 min-w-0 flex-1">
                         <span className="font-bold text-neutral-500 mr-1">{t.home.shaLabel}</span>
-                        <span className="select-all">{file.sha256}</span>
+                        <span className="select-all truncate inline-block max-w-[200px] sm:max-w-none align-middle">{file.sha256}</span>
                       </div>
                       <button
                         onClick={() => copyToClipboard(file.sha256, file.id)}
@@ -284,7 +284,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   </div>
 
                   {/* Direct Download Button */}
-                  <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800 flex items-center justify-between gap-3">
+                  <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800 flex flex-wrap items-center justify-between gap-3">
                     <div className="text-[11px] text-neutral-400">
                       {file.minOsVersion}
                     </div>
@@ -293,7 +293,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                       id={`direct-dl-btn-${file.id}`}
                       onClick={() => handleDownloadClick(file)}
                       disabled={isDownloading}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-white text-xs font-semibold shadow-sm transition-all"
+                      className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-white text-xs font-semibold shadow-sm transition-all ms-auto"
                     >
                       <Download className={`w-3.5 h-3.5 ${isDownloading ? 'animate-bounce' : ''}`} />
                       <span>{isDownloading ? t.common.loading : t.home.directDownloadFile}</span>
@@ -302,6 +302,19 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </div>
               );
             })}
+          </div>
+
+          {/* Mobile prominent button to explore all downloads */}
+          <div className="pt-1 sm:hidden">
+            <button
+              id="mobile-explore-all-downloads-btn"
+              onClick={() => setCurrentPage('downloads')}
+              className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-800 dark:text-neutral-200 text-xs font-semibold shadow-xs active:scale-98 transition-all"
+            >
+              <Download className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <span>{t.home.exploreAllDownloads}</span>
+              {isRtl ? <ArrowLeft className="w-3.5 h-3.5" /> : <ArrowRight className="w-3.5 h-3.5" />}
+            </button>
           </div>
         </section>
 
