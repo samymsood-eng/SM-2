@@ -1,0 +1,6 @@
+{
+  "name": "SM+2",
+  "description": "المنصة الرسمية لبرمجيات SM+2 - تنزيل مباشر، متجر المنتجات والمبيعات، ودعم المطورين مع لوحة تحكم إدارية وتكامل GitHub",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
