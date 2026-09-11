@@ -12,4 +12,49 @@
   }
 }
 
+/* Ensure mobile navigation drawer has 100% opaque solid background and clear contrast */
+#mobile-navigation-drawer {
+  background-color: #ffffff !important;
+  color: #171717 !important;
+  opacity: 1 !important;
+}
+
+html.dark #mobile-navigation-drawer,
+body.dark #mobile-navigation-drawer,
+[data-theme="dark"] #mobile-navigation-drawer {
+  background-color: #0a0a0a !important;
+  color: #f5f5f5 !important;
+  opacity: 1 !important;
+}
+
+/* Guarantee backdrop overlay covers the full viewport with smooth dark dimming */
+#mobile-drawer-backdrop {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  backdrop-filter: blur(4px) !important;
+  -webkit-backdrop-filter: blur(4px) !important;
+}
+
+/* Prevent text clipping and overlap on mobile */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Slow, gentle vertical floating animation (up and down) for Hero SM+2 phrase */
+@keyframes sm2-slow-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.animate-sm2-slow-float {
+  display: inline-block;
+  animation: sm2-slow-float 3.2s ease-in-out infinite;
+  will-change: transform;
+}
+
+
 

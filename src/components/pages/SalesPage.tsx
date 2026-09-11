@@ -20,6 +20,8 @@ import {
   HeartHandshake,
   MessageSquare,
   PlusCircle,
+  Lock,
+  Copy,
 } from 'lucide-react';
 
 interface SalesPageProps {
@@ -42,6 +44,8 @@ export const SalesPage: React.FC<SalesPageProps> = ({
   const [purchaseModalProduct, setPurchaseModalProduct] = useState<Product | null>(null);
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
   const [reviewsModalProduct, setReviewsModalProduct] = useState<Product | null>(null);
+  const [downloadModalProduct, setDownloadModalProduct] = useState<Product | null>(null);
+  const [copiedPassword, setCopiedPassword] = useState(false);
 
   const t = translations[language];
   const isRtl = language === 'ar';
@@ -49,6 +53,62 @@ export const SalesPage: React.FC<SalesPageProps> = ({
   const openProductDetails = (product: Product) => {
     setSelectedProduct(product);
     setActiveImageIndex(0);
+  };
+
+  const handleCopyPassword = (pass: string) => {
+    navigator.clipboard.writeText(pass);
+    setCopiedPassword(true);
+    setTimeout(() => setCopiedPassword(false), 2500);
+  };
+
+  const handleProductDownloadAction = (product: Product) => {
+    // If the product has an archive password, open the official gateway modal so the visitor can view & copy the password
+    if (product.archivePassword) {
+      setDownloadModalProduct(product);
+      return;
+    }
+
+    // If an external download URL is available (Google Drive, MEGA, or valid web URL), direct the visitor immediately!
+    if (
+      product.downloadUrl &&
+      (product.downloadUrl.startsWith('http://') || product.downloadUrl.startsWith('https://')) &&
+      !product.downloadUrl.includes('example.com')
+    ) {
+      window.open(product.downloadUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // If designated as cloud provider without full URL or needs explicit staging
+    if (product.downloadProvider === 'google_drive' || product.downloadProvider === 'mega') {
+      setDownloadModalProduct(product);
+    } else {
+      onSelectDownload(product.downloadUrl);
+      setCurrentPage('downloads');
+    }
+  };
+
+  const handleLaunchDownload = (product: Product) => {
+    if (product.archivePassword) {
+      navigator.clipboard.writeText(product.archivePassword);
+      setCopiedPassword(true);
+    }
+
+    if (
+      product.downloadUrl &&
+      (product.downloadUrl.startsWith('http://') || product.downloadUrl.startsWith('https://'))
+    ) {
+      window.open(product.downloadUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      // Simulate direct file download
+      const element = document.createElement('a');
+      const fileContent = `SM+2 Software Release\nProduct: ${product.name}\nVersion: ${product.version}\nProvider: ${product.downloadProvider || 'direct'}\nPassword: ${product.archivePassword || 'None'}\nDownloaded from SM+2 Integrated Platform.`;
+      const blob = new Blob([fileContent], { type: 'text/plain' });
+      element.href = URL.createObjectURL(blob);
+      element.download = `${product.name.replace(/\s+/g, '_')}_v${product.version}.zip.txt`;
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+    }
   };
 
   const handleSimulatePurchase = (e: React.FormEvent) => {
@@ -144,8 +204,8 @@ export const SalesPage: React.FC<SalesPageProps> = ({
               </div>
             </div>
             <div className="p-3 col-span-2 sm:col-span-1">
-              <div className="font-serif text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-                +180K
+              <div className="font-serif text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                <span className="tabular-nums">+180K</span>
               </div>
               <div className="text-xs text-neutral-500 dark:text-neutral-400 font-medium">
                 {t.sales.downloadsGlobal}
@@ -275,10 +335,48 @@ export const SalesPage: React.FC<SalesPageProps> = ({
                           {product.price}
                         </div>
                       </div>
-                      <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">
-                        {product.license}
-                      </span>
+                      
+                      <div className="flex items-center gap-1.5">
+                        {product.downloadProvider === 'google_drive' && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold border border-blue-500/20">
+                            Google Drive
+                          </span>
+                        )}
+                        {product.downloadProvider === 'mega' && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-500/10 text-red-700 dark:text-red-300 font-bold border border-red-500/20">
+                            MEGA.nz
+                          </span>
+                        )}
+                        {(!product.downloadProvider || product.downloadProvider === 'direct') && (
+                          <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400">
+                            CDN
+                          </span>
+                        )}
+                        <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">
+                          {product.license}
+                        </span>
+                      </div>
                     </div>
+
+                    {/* Archive Password Preview (if configured by admin) */}
+                    {product.archivePassword && (
+                      <div className="p-2.5 rounded-lg bg-amber-500/5 dark:bg-amber-950/20 border border-amber-500/20 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2 text-neutral-700 dark:text-neutral-300">
+                          <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                          <span className="text-[11px] font-medium">{language === 'ar' ? 'باسورد فك الضغط:' : 'Archive Pass:'}</span>
+                          <span className="font-mono font-bold text-amber-800 dark:text-amber-300 select-all">{product.archivePassword}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyPassword(product.archivePassword!)}
+                          className="px-2 py-1 rounded hover:bg-amber-500/20 text-[10px] font-medium text-amber-800 dark:text-amber-300 flex items-center gap-1"
+                          title={language === 'ar' ? 'نسخ الباسورد' : 'Copy Password'}
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>{language === 'ar' ? 'نسخ' : 'Copy'}</span>
+                        </button>
+                      </div>
+                    )}
 
                     {/* Action Buttons: Details, Reviews, Download */}
                     <div className="space-y-2">
@@ -304,14 +402,17 @@ export const SalesPage: React.FC<SalesPageProps> = ({
 
                       <button
                         id={`download-prod-${product.id}`}
-                        onClick={() => {
-                          onSelectDownload(product.downloadUrl);
-                          setCurrentPage('downloads');
-                        }}
+                        onClick={() => handleProductDownloadAction(product)}
                         className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-white text-xs font-semibold shadow-sm transition-colors"
                       >
                         <Download className="w-3.5 h-3.5" />
-                        <span>{t.sales.directDownload}</span>
+                        <span>
+                          {product.downloadProvider === 'google_drive'
+                            ? (language === 'ar' ? 'تحميل عبر Google Drive' : 'Download via Google Drive')
+                            : product.downloadProvider === 'mega'
+                            ? (language === 'ar' ? 'تحميل عبر MEGA.nz' : 'Download via MEGA')
+                            : t.sales.directDownload}
+                        </span>
                       </button>
                     </div>
 
@@ -523,9 +624,9 @@ export const SalesPage: React.FC<SalesPageProps> = ({
                 </button>
                 <button
                   onClick={() => {
+                    const prod = selectedProduct;
                     setSelectedProduct(null);
-                    onSelectDownload(selectedProduct.downloadUrl);
-                    setCurrentPage('downloads');
+                    handleProductDownloadAction(prod);
                   }}
                   className="flex items-center justify-center gap-2 px-5 py-2 text-xs font-semibold rounded-lg bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-white"
                 >
@@ -617,6 +718,138 @@ export const SalesPage: React.FC<SalesPageProps> = ({
                 </button>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* External Download & Archive Password Gateway Modal */}
+      {downloadModalProduct && (
+        <div
+          id="product-download-gateway-modal"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        >
+          <div className="relative w-full max-w-lg rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 sm:p-7 shadow-2xl space-y-6">
+            <button
+              onClick={() => setDownloadModalProduct(null)}
+              className="absolute top-4 end-4 p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Header */}
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="p-1.5 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400">
+                  <Download className="w-4 h-4" />
+                </span>
+                <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400">
+                  {language === 'ar' ? 'بوابة التحميل المباشر المعتمدة' : 'Official Software Download Gateway'}
+                </span>
+              </div>
+              <h3 className="font-serif text-xl sm:text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+                {language === 'ar' ? downloadModalProduct.name : downloadModalProduct.nameEn}
+              </h3>
+              <p className="text-xs text-neutral-500 font-mono">
+                Version {downloadModalProduct.version} • {downloadModalProduct.license}
+              </p>
+            </div>
+
+            {/* Provider and Link Information */}
+            <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700/60 space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-neutral-500 font-medium">
+                  {language === 'ar' ? 'مصدر استضافة الملف:' : 'Hosting Provider:'}
+                </span>
+                <span className="font-semibold text-neutral-900 dark:text-neutral-100 flex items-center gap-1.5">
+                  {downloadModalProduct.downloadProvider === 'google_drive' && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold border border-blue-500/20">
+                      Google Drive Cloud
+                    </span>
+                  )}
+                  {downloadModalProduct.downloadProvider === 'mega' && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-red-500/10 text-red-700 dark:text-red-300 font-bold border border-red-500/20">
+                      MEGA.nz Secure Storage
+                    </span>
+                  )}
+                  {(!downloadModalProduct.downloadProvider || downloadModalProduct.downloadProvider === 'direct' || downloadModalProduct.downloadProvider === 'custom') && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20">
+                      Direct High-Speed CDN
+                    </span>
+                  )}
+                </span>
+              </div>
+
+              {downloadModalProduct.downloadUrl && (
+                <div className="text-[11px] font-mono text-neutral-500 truncate pt-1 border-t border-neutral-200 dark:border-neutral-700">
+                  <span className="text-neutral-400 mr-1 font-semibold">{language === 'ar' ? 'الرابط المباشر:' : 'URL:'}</span>
+                  <span className="select-all" title={downloadModalProduct.downloadUrl}>{downloadModalProduct.downloadUrl}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Archive Decompression Password Feature */}
+            {downloadModalProduct.archivePassword ? (
+              <div className="p-4 rounded-xl bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/30 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-300">
+                    <Lock className="w-4 h-4 text-amber-600" />
+                    <span>{language === 'ar' ? 'كلمة مرور فك ضغط الملف (Archive Password)' : 'Decompression Password'}</span>
+                  </div>
+                  {copiedPassword && (
+                    <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                      {language === 'ar' ? '✓ تم النسخ إلى الحافظة' : '✓ Copied to clipboard'}
+                    </span>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-neutral-600 dark:text-neutral-400">
+                  {language === 'ar'
+                    ? 'هذا الأرشيف محمي برمز أمان رسمي. انسخ الباسورد بالضغط على زر النسخ لاستخدامه عند استخراج الملفات:'
+                    : 'This file archive is protected. Copy the password to extract files after download:'}
+                </p>
+
+                <div className="p-3 rounded-lg bg-white dark:bg-neutral-900 border border-amber-500/30 flex items-center justify-between gap-3">
+                  <span className="font-mono text-base font-black text-amber-900 dark:text-amber-200 tracking-wider select-all">
+                    {downloadModalProduct.archivePassword}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyPassword(downloadModalProduct.archivePassword!)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold shadow-xs transition-colors"
+                  >
+                    {copiedPassword ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedPassword ? (language === 'ar' ? 'تم النسخ' : 'Copied') : (language === 'ar' ? 'نسخ الباسورد' : 'Copy Password')}</span>
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setDownloadModalProduct(null)}
+                className="px-4 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs font-medium"
+              >
+                {t.common.close}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleLaunchDownload(downloadModalProduct)}
+                className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-white text-xs font-semibold shadow-md transition-all active:scale-95"
+              >
+                <Download className="w-4 h-4" />
+                <span>
+                  {downloadModalProduct.downloadProvider === 'google_drive'
+                    ? (language === 'ar' ? 'فتح وتحميل من Google Drive' : 'Download via Google Drive')
+                    : downloadModalProduct.downloadProvider === 'mega'
+                    ? (language === 'ar' ? 'فتح وتحميل من MEGA.nz' : 'Download via MEGA.nz')
+                    : (language === 'ar' ? 'بدء التحميل الآن' : 'Start Download Now')}
+                </span>
+                <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -158,7 +158,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="font-serif text-base sm:text-lg font-bold tracking-tight text-neutral-900 dark:text-neutral-100 group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors leading-none">
+                  <span className="font-serif text-base sm:text-lg font-extrabold tracking-tight bg-gradient-to-r from-neutral-900 via-amber-700 to-neutral-800 dark:from-white dark:via-amber-300 dark:to-neutral-200 bg-clip-text text-transparent leading-none">
                     SM+2
                   </span>
                   <span className="hidden sm:inline-block px-1.5 py-0.5 text-[8px] font-mono font-semibold tracking-wider uppercase rounded bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20 leading-none">
@@ -397,7 +397,7 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            {/* Admin Console Direct Link - ONLY visible when admin is authenticated */}
+            {/* Admin Console Link - Visible only when authenticated */}
             {currentUser && (
               <button
                 id="nav-link-admin"
@@ -520,15 +520,19 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Mobile Quick Theme Toggle (accessible directly without opening drawer) */}
             <button
+              type="button"
               id="mobile-quick-theme-toggle"
-              onClick={toggleTheme}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleTheme();
+              }}
               aria-label={theme === 'dark' ? t.nav.themeLight : t.nav.themeDark}
-              className="lg:hidden p-1.5 sm:p-2 rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+              className="lg:hidden p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-100/80 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 active:scale-95 transition-all"
             >
               {theme === 'dark' ? (
-                <Sun className="w-4 h-4 text-amber-400" />
+                <Sun className="w-4 h-4 text-amber-400 shrink-0" />
               ) : (
-                <Moon className="w-4 h-4 text-neutral-700" />
+                <Moon className="w-4 h-4 text-neutral-700 dark:text-neutral-300 shrink-0" />
               )}
             </button>
 
@@ -548,20 +552,20 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Mobile Drawer Menu with Backdrop Overlay (قائمة جانبية منسدلة واحترافية للهواتف الذكية) */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
-          {/* Backdrop Blur Overlay */}
+          {/* Backdrop Overlay */}
           <div
             id="mobile-drawer-backdrop"
             onClick={() => setMobileMenuOpen(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 animate-in fade-in"
+            className="fixed inset-0 bg-neutral-950/80 backdrop-blur-sm transition-opacity duration-300"
           />
 
-          {/* Slide-over Drawer Panel */}
+          {/* Slide-over Drawer Panel with Guaranteed Solid Opaque Background */}
           <div
             id="mobile-navigation-drawer"
-            className="relative ms-auto w-full max-w-xs sm:max-w-sm h-full bg-white dark:bg-neutral-900 shadow-2xl border-s border-neutral-200 dark:border-neutral-800 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-end duration-250 z-10"
+            className="relative ms-auto w-full max-w-xs sm:max-w-sm h-full bg-white dark:bg-neutral-950 shadow-2xl border-s border-neutral-200 dark:border-neutral-800 flex flex-col justify-between overflow-y-auto z-10"
           >
             {/* Drawer Header with Title and Close Button */}
-            <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between bg-neutral-50/70 dark:bg-neutral-800/40">
+            <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between bg-neutral-100 dark:bg-neutral-900">
               <div className="flex items-center gap-2.5">
                 <div className="relative flex items-center justify-center w-8 h-8 rounded-full overflow-hidden border border-amber-500/40 bg-neutral-900 ring-1 ring-amber-500/20 shrink-0">
                   <img
@@ -606,7 +610,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* Main Navigation Links */}
-            <div className="p-4 space-y-3 flex-1 overflow-y-auto">
+            <div className="p-4 space-y-3.5 flex-1 overflow-y-auto">
               {/* Home Link */}
               <button
                 id="mobile-nav-home"
@@ -614,17 +618,17 @@ export const Header: React.FC<HeaderProps> = ({
                   setCurrentPage('home');
                   setMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                className={`w-full min-h-[48px] flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${
                   currentPage === 'home'
-                    ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 font-semibold shadow-sm'
-                    : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                    ? 'bg-amber-600 text-white font-bold shadow-sm'
+                    : 'text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800/80'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Home className="w-4 h-4 text-amber-500" />
-                  <span>{t.nav.home}</span>
+                  <Home className={`w-4 h-4 shrink-0 ${currentPage === 'home' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`} />
+                  <span className="text-sm font-semibold">{t.nav.home}</span>
                 </div>
-                {currentPage === 'home' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                {currentPage === 'home' && <span className="w-2 h-2 rounded-full bg-white shrink-0" />}
               </button>
 
               {/* Direct Downloads Link - Prominently Visible on Mobile */}
@@ -634,77 +638,82 @@ export const Header: React.FC<HeaderProps> = ({
                   setCurrentPage('downloads');
                   setMobileMenuOpen(false);
                 }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                className={`w-full min-h-[48px] flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${
                   currentPage === 'downloads'
-                    ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 font-semibold shadow-sm'
-                    : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                    ? 'bg-emerald-600 text-white font-bold shadow-sm'
+                    : 'text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800/80'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Download className="w-4 h-4 text-emerald-500" />
-                  <span>{t.nav.downloads}</span>
+                  <Download className={`w-4 h-4 shrink-0 ${currentPage === 'downloads' ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`} />
+                  <span className="text-sm font-semibold">{t.nav.downloads}</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 font-semibold">
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold ${
+                    currentPage === 'downloads' ? 'bg-white/20 text-white' : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400'
+                  }`}>
                     v2.4.0
                   </span>
-                  {currentPage === 'downloads' && <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />}
+                  {currentPage === 'downloads' && <span className="w-2 h-2 rounded-full bg-white shrink-0" />}
                 </div>
               </button>
 
               {/* Software Group Accordion */}
               <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden bg-neutral-50/50 dark:bg-neutral-800/20">
                 <button
+                  type="button"
                   onClick={() => setMobileSoftwareOpen(!mobileSoftwareOpen)}
-                  className="w-full flex items-center justify-between px-3.5 py-2.5 text-sm font-semibold text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100/60 dark:hover:bg-neutral-800/60 transition-colors"
+                  className="w-full min-h-[48px] flex items-center justify-between px-4 py-3 text-sm font-semibold text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100/60 dark:hover:bg-neutral-800/60 transition-colors active:bg-neutral-100 dark:active:bg-neutral-800"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <ShoppingBag className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <div className="flex items-center gap-3">
+                    <ShoppingBag className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
                     <span>{t.nav.softwareMenu}</span>
                   </div>
                   <ChevronDown
-                    className={`w-4 h-4 transition-transform duration-200 ${
+                    className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
                       mobileSoftwareOpen ? 'rotate-180 text-amber-600' : ''
                     }`}
                   />
                 </button>
 
                 {mobileSoftwareOpen && (
-                  <div className="p-2 space-y-1.5 bg-white dark:bg-neutral-900 border-t border-neutral-200/60 dark:border-neutral-800">
+                  <div className="p-2.5 space-y-2 bg-white dark:bg-neutral-900 border-t border-neutral-200/60 dark:border-neutral-800">
                     <button
+                      type="button"
                       onClick={() => {
                         setCurrentPage('sales');
                         setMobileMenuOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                      className={`w-full min-h-[44px] flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-medium transition-all active:scale-[0.98] ${
                         currentPage === 'sales'
                           ? 'bg-amber-500/15 text-amber-900 dark:text-amber-300 font-bold border border-amber-500/30'
                           : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                        <span>{t.nav.sales}</span>
+                      <div className="flex items-center gap-2.5">
+                        <Sparkles className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span className="font-semibold">{t.nav.sales}</span>
                       </div>
-                      <span className="text-[10px] font-bold text-amber-600">★ 4.9</span>
+                      <span className="text-[11px] font-bold text-amber-600">★ 4.9</span>
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => {
                         setCurrentPage('downloads');
                         setMobileMenuOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                      className={`w-full min-h-[44px] flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-medium transition-all active:scale-[0.98] ${
                         currentPage === 'downloads'
                           ? 'bg-amber-500/15 text-amber-900 dark:text-amber-300 font-bold border border-amber-500/30'
                           : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <Download className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>{t.nav.downloads}</span>
+                      <div className="flex items-center gap-2.5">
+                        <Download className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <span className="font-semibold">{t.nav.downloads}</span>
                       </div>
-                      <span className="text-[10px] font-mono text-emerald-600">v2.4.0</span>
+                      <span className="text-[11px] font-mono text-emerald-600 font-bold">v2.4.0</span>
                     </button>
                   </div>
                 )}
@@ -713,79 +722,83 @@ export const Header: React.FC<HeaderProps> = ({
               {/* Developer Group Accordion */}
               <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 overflow-hidden bg-neutral-50/50 dark:bg-neutral-800/20">
                 <button
+                  type="button"
                   onClick={() => setMobileDevOpen(!mobileDevOpen)}
-                  className="w-full flex items-center justify-between px-3.5 py-2.5 text-sm font-semibold text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100/60 dark:hover:bg-neutral-800/60 transition-colors"
+                  className="w-full min-h-[48px] flex items-center justify-between px-4 py-3 text-sm font-semibold text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100/60 dark:hover:bg-neutral-800/60 transition-colors active:bg-neutral-100 dark:active:bg-neutral-800"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <LifeBuoy className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  <div className="flex items-center gap-3">
+                    <LifeBuoy className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
                     <span>{t.nav.devMenu}</span>
                   </div>
                   <ChevronDown
-                    className={`w-4 h-4 transition-transform duration-200 ${
+                    className={`w-4 h-4 shrink-0 transition-transform duration-200 ${
                       mobileDevOpen ? 'rotate-180 text-amber-600' : ''
                     }`}
                   />
                 </button>
 
                 {mobileDevOpen && (
-                  <div className="p-2 space-y-1.5 bg-white dark:bg-neutral-900 border-t border-neutral-200/60 dark:border-neutral-800">
+                  <div className="p-2.5 space-y-2 bg-white dark:bg-neutral-900 border-t border-neutral-200/60 dark:border-neutral-800">
                     <button
+                      type="button"
                       onClick={() => {
                         setCurrentPage('developer');
                         setMobileMenuOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                      className={`w-full min-h-[44px] flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-medium transition-all active:scale-[0.98] ${
                         currentPage === 'developer'
                           ? 'bg-amber-500/15 text-amber-900 dark:text-amber-300 font-bold border border-amber-500/30'
                           : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
                       }`}
                     >
-                      <div className="flex items-center gap-2">
-                        <LifeBuoy className="w-3.5 h-3.5 text-amber-600" />
-                        <span>{t.nav.developer}</span>
+                      <div className="flex items-center gap-2.5">
+                        <LifeBuoy className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span className="font-semibold">{t.nav.developer}</span>
                       </div>
-                      <span className="flex items-center gap-1 text-[10px] text-emerald-600 font-medium">
+                      <span className="flex items-center gap-1 text-[11px] text-emerald-600 font-medium">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                         <span>Active</span>
                       </span>
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => {
                         setCurrentPage('downloads');
                         setMobileMenuOpen(false);
                       }}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                      className="w-full min-h-[44px] flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors active:scale-[0.98]"
                     >
-                      <div className="flex items-center gap-2">
-                        <Activity className="w-3.5 h-3.5 text-blue-600" />
-                        <span>{t.nav.changelogMenu}</span>
+                      <div className="flex items-center gap-2.5">
+                        <Activity className="w-4 h-4 text-blue-600 shrink-0" />
+                        <span className="font-semibold">{t.nav.changelogMenu}</span>
                       </div>
-                      <span className="text-[10px] text-blue-600 font-mono">Auto-Log</span>
+                      <span className="text-[11px] text-blue-600 font-mono font-bold">Auto-Log</span>
                     </button>
                   </div>
                 )}
               </div>
 
-              {/* Admin Console Link - ONLY when authenticated */}
+              {/* Admin Console Link - Authenticated only */}
               {currentUser && (
                 <button
+                  type="button"
                   id="mobile-nav-admin"
                   onClick={() => {
                     setCurrentPage('admin');
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  className={`w-full min-h-[48px] flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${
                     currentPage === 'admin'
                       ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 font-semibold'
                       : 'text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Lock className="w-4 h-4 text-amber-500" />
-                    <span>{t.nav.admin}</span>
+                    <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+                    <span className="font-semibold">{t.nav.admin}</span>
                   </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-900 dark:text-amber-300 font-bold">
+                  <span className="text-[11px] font-mono px-2.5 py-1 rounded bg-amber-500/20 text-amber-900 dark:text-amber-300 font-bold">
                     {language === 'ar' ? 'مشرف' : 'Admin'}
                   </span>
                 </button>
@@ -793,24 +806,25 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
 
             {/* Mobile Drawer Footer: Language, Theme & Supervisor Status */}
-            <div className="p-4 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/30 space-y-3">
+            <div className="p-4 border-t border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/30 space-y-4">
               {/* Quick Language Toggle in Drawer */}
               <div>
-                <span className="text-[10px] font-bold text-neutral-400 dark:text-neutral-500 uppercase tracking-wider block mb-1.5">
+                <span className="text-[11px] font-bold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider block mb-2">
                   {language === 'ar' ? 'اللغة الحالية' : 'Language'}
                 </span>
-                <div className="grid grid-cols-3 gap-1.5">
+                <div className="grid grid-cols-3 gap-2">
                   {languagesList.map((lang) => (
                     <button
+                      type="button"
                       key={lang.code}
                       onClick={() => setLanguage(lang.code)}
-                      className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-medium border transition-colors ${
+                      className={`min-h-[44px] flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-semibold border transition-all active:scale-95 ${
                         language === lang.code
-                          ? 'border-amber-500 bg-amber-500/15 text-amber-900 dark:text-amber-300 font-bold'
-                          : 'border-neutral-200 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800'
+                          ? 'border-amber-500 bg-amber-500/15 text-amber-900 dark:text-amber-300 font-bold shadow-xs'
+                          : 'border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 bg-white dark:bg-neutral-900'
                       }`}
                     >
-                      <span>{lang.flag}</span>
+                      <span className="text-sm">{lang.flag}</span>
                       <span>{lang.code.toUpperCase()}</span>
                     </button>
                   ))}
@@ -819,21 +833,26 @@ export const Header: React.FC<HeaderProps> = ({
 
               {/* Quick Theme Switch */}
               <div className="flex items-center justify-between pt-1">
-                <span className="text-xs text-neutral-600 dark:text-neutral-400">
+                <span className="text-xs font-medium text-neutral-600 dark:text-neutral-400">
                   {theme === 'dark' ? (language === 'ar' ? 'الوضع الداكن' : 'Dark Mode') : (language === 'ar' ? 'الوضع النهاري' : 'Light Mode')}
                 </span>
                 <button
-                  onClick={toggleTheme}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-neutral-200 dark:border-neutral-700 text-xs text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                  type="button"
+                  id="mobile-drawer-theme-toggle"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleTheme();
+                  }}
+                  className="flex items-center gap-2 px-3.5 py-2 min-h-[40px] rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-xs font-semibold text-neutral-800 dark:text-neutral-200 active:scale-95 transition-all shadow-xs"
                 >
                   {theme === 'dark' ? (
                     <>
-                      <Sun className="w-3.5 h-3.5 text-amber-400" />
+                      <Sun className="w-4 h-4 text-amber-400 shrink-0" />
                       <span>{language === 'ar' ? 'نهاري' : 'Light'}</span>
                     </>
                   ) : (
                     <>
-                      <Moon className="w-3.5 h-3.5 text-neutral-700" />
+                      <Moon className="w-4 h-4 text-neutral-700 dark:text-neutral-300 shrink-0" />
                       <span>{language === 'ar' ? 'ليلي' : 'Dark'}</span>
                     </>
                   )}

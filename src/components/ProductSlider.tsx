@@ -240,8 +240,16 @@ export const ProductSlider: React.FC<ProductSliderProps> = ({
           <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-neutral-200/80 dark:border-neutral-800">
             <button
               onClick={() => {
-                setCurrentPage('downloads');
-                onDirectDownload(currentProduct.downloadUrl);
+                if (
+                  currentProduct.downloadUrl &&
+                  (currentProduct.downloadUrl.startsWith('http://') || currentProduct.downloadUrl.startsWith('https://')) &&
+                  !currentProduct.downloadUrl.includes('example.com')
+                ) {
+                  window.open(currentProduct.downloadUrl, '_blank', 'noopener,noreferrer');
+                } else {
+                  setCurrentPage('downloads');
+                  onDirectDownload(currentProduct.downloadUrl);
+                }
               }}
               className="flex-1 min-w-[140px] inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-white text-xs font-semibold shadow-sm transition-all hover:scale-102 active:scale-98"
             >

@@ -34,6 +34,8 @@ export interface Product {
   demoUrl?: string;
   isFeatured?: boolean;
   reviews?: ProductReview[];
+  downloadProvider?: 'direct' | 'google_drive' | 'mega' | 'mediafire' | 'custom';
+  archivePassword?: string;
 }
 
 export interface DocSection {
@@ -71,6 +73,8 @@ export interface DownloadFile {
   minOsVersion: string;
   releaseNotes: string;
   releaseNotesEn: string;
+  downloadProvider?: 'direct' | 'google_drive' | 'mega' | 'mediafire' | 'custom';
+  archivePassword?: string;
 }
 
 export interface ChangelogEntry {

@@ -37,6 +37,7 @@ import { DownloadsPage } from './components/pages/DownloadsPage';
 import { DeveloperSupportPage } from './components/pages/DeveloperSupportPage';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { GitHubModal } from './components/modals/GitHubModal';
+import { ScrollToTop } from './components/ScrollToTop';
 
 export default function App() {
   // --- STATE WITH LOCAL STORAGE PERSISTENCE ---
@@ -289,6 +290,7 @@ export default function App() {
             downloads={downloads}
             changelogs={changelogs}
             products={products}
+            subscribers={subscribers}
             language={language}
             setCurrentPage={setCurrentPage}
             onSubscribeEmail={handleSubscribeEmail}
@@ -368,6 +370,9 @@ export default function App() {
         downloads={downloads}
         language={language}
       />
+
+      {/* Floating Scroll to Top Button */}
+      <ScrollToTop language={language} />
     </div>
   );
 }

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Language, Page } from '../types';
 import { translations } from '../i18n/translations';
-import { Github, Mail, ShieldCheck, Heart, ArrowUpRight, CheckCircle2, Lock } from 'lucide-react';
+import { Github, ShieldCheck, ArrowUpRight, CheckCircle2 } from 'lucide-react';
 
 interface FooterProps {
   language: Language;
@@ -18,7 +18,30 @@ export const Footer: React.FC<FooterProps> = ({
 }) => {
   const [emailInput, setEmailInput] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const adminClicksRef = useRef(0);
+  const adminTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   const t = translations[language];
+
+  // Discreet 5-Click Secret Admin Portal Trigger (completely silent, no counter or hints displayed)
+  const handleAdminPortalClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    adminClicksRef.current += 1;
+
+    if (adminTimerRef.current) {
+      clearTimeout(adminTimerRef.current);
+    }
+
+    if (adminClicksRef.current >= 5) {
+      adminClicksRef.current = 0;
+      setCurrentPage('admin');
+    } else {
+      // Secret silent reset after 3 seconds of inactivity
+      adminTimerRef.current = setTimeout(() => {
+        adminClicksRef.current = 0;
+      }, 3000);
+    }
+  };
 
   const handleSubscribe = (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,12 +232,12 @@ export const Footer: React.FC<FooterProps> = ({
             </span>
             <span>•</span>
             <button
-              onClick={() => setCurrentPage('admin')}
-              className="inline-flex items-center gap-1 opacity-50 hover:opacity-100 hover:text-amber-700 dark:hover:text-amber-400 transition-opacity"
-              title={language === 'ar' ? 'دخول المشرف' : 'Admin Sign-in'}
+              id="footer-admin-portal-btn"
+              type="button"
+              onClick={handleAdminPortalClick}
+              className="text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 transition-colors text-xs select-none focus:outline-none"
             >
-              <Lock className="w-3 h-3" />
-              <span>{language === 'ar' ? 'بوابة الإدارة' : 'Admin Portal'}</span>
+              {language === 'ar' ? 'بوابة الإدارة' : 'Admin Portal'}
             </button>
           </div>
         </div>

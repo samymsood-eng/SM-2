@@ -36,6 +36,7 @@ import {
   Sparkles,
   Key,
   Terminal,
+  ExternalLink,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -248,7 +249,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         features: editingProduct.features || ['ميزة رقمية متقدمة', 'أداء استثنائي', 'حماية مشفرة'],
         featuresEn: editingProduct.featuresEn || ['Advanced digital capability', 'High performance', 'Encrypted protection'],
         systemRequirements: ['Windows / macOS / Linux'],
-        downloadUrl: '#download',
+        downloadUrl: editingProduct.downloadUrl || '#download',
+        downloadProvider: editingProduct.downloadProvider || 'direct',
+        archivePassword: editingProduct.archivePassword || '',
       };
       onUpdateProducts([newProd, ...products]);
     }
@@ -319,6 +322,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         fileName: editingDownload.fileName || 'SM2_Setup.msi',
         fileSize: editingDownload.fileSize || '64.0 MB',
         directUrl: editingDownload.directUrl || 'https://github.com/releases/download/v2.5.0/SM2_Setup.msi',
+        downloadProvider: editingDownload.downloadProvider || 'direct',
+        archivePassword: editingDownload.archivePassword || '',
         sha256: editingDownload.sha256 || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
         isLatest: true,
         minOsVersion: editingDownload.minOsVersion || 'Universal OS',
@@ -659,6 +664,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </h4>
                     <p className="text-xs text-amber-700 dark:text-amber-400 font-medium">v{p.version} • {p.price}</p>
                     <p className="text-xs text-neutral-500 mt-1 line-clamp-2">{language === 'ar' ? p.description : p.descriptionEn}</p>
+                    
+                    {/* Download Provider & Password Badges */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-2">
+                      {p.downloadProvider === 'google_drive' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                          Google Drive
+                        </span>
+                      )}
+                      {p.downloadProvider === 'mega' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-red-500/10 text-red-700 dark:text-red-300 border border-red-500/20">
+                          MEGA.nz
+                        </span>
+                      )}
+                      {(!p.downloadProvider || p.downloadProvider === 'direct') && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-300 dark:border-neutral-700">
+                          {language === 'ar' ? 'خادم مباشر' : 'Direct Server'}
+                        </span>
+                      )}
+                      {p.archivePassword && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/30" title={`Password: ${p.archivePassword}`}>
+                          <Lock className="w-2.5 h-2.5" />
+                          <span>{language === 'ar' ? 'محمي بكلمة سر' : 'Password Protected'}</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-100 dark:border-neutral-800 text-xs">
                     <button
@@ -1381,6 +1411,113 @@ jobs:
                   className="w-full px-3 py-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 font-mono text-[11px]"
                 />
               </div>
+
+              {/* External Download Link & Archive Password Options (Enhanced) */}
+              <div className="p-3.5 rounded-xl border border-amber-300/70 dark:border-amber-700/60 bg-amber-50/50 dark:bg-amber-950/20 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900 dark:text-amber-200">
+                    <Download className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                    <span>
+                      {language === 'ar'
+                        ? 'إعدادات التحميل الخارجي وكلمة المرور (اختياري)'
+                        : 'External Download & Password Settings (Optional)'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200/60 dark:bg-amber-800/40 text-amber-800 dark:text-amber-200 font-medium">
+                    {language === 'ar' ? 'Google Drive / Mega / سحابي' : 'Cloud / Direct'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-medium text-xs text-neutral-800 dark:text-neutral-200 mb-1">
+                      {language === 'ar' ? 'مزود خدمة الاستضافة:' : 'Storage / Host Provider:'}
+                    </label>
+                    <select
+                      value={editingProduct?.downloadProvider || 'direct'}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, downloadProvider: e.target.value as any })}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 font-medium text-xs text-neutral-900 dark:text-neutral-100 focus:ring-1 focus:ring-amber-500"
+                    >
+                      <option value="direct">{language === 'ar' ? 'خادم المنصة المباشر (Direct CDN)' : 'Direct CDN Server'}</option>
+                      <option value="google_drive">Google Drive (جوجل درايف)</option>
+                      <option value="mega">MEGA.nz (موقع ميجا)</option>
+                      <option value="custom">{language === 'ar' ? 'سحابة خارجية (MediaFire / رابط مخصص)' : 'External Cloud / MediaFire'}</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-medium text-xs text-neutral-800 dark:text-neutral-200 mb-1 flex items-center justify-between">
+                      <span>{language === 'ar' ? 'كلمة مرور فك الضغط (اختياري):' : 'Archive Password (Optional):'}</span>
+                      {editingProduct?.archivePassword && (
+                        <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                          {language === 'ar' ? 'مفعلة' : 'Active'}
+                        </span>
+                      )}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={editingProduct?.archivePassword || ''}
+                        onChange={(e) => setEditingProduct({ ...editingProduct, archivePassword: e.target.value })}
+                        placeholder={language === 'ar' ? 'مثال: SM2@2027 (اتركها فارغة إن لم توجد)' : 'e.g. SM2@2027 (leave empty if none)'}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 font-mono text-xs text-neutral-900 dark:text-neutral-100 focus:ring-1 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Download URL Input */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-medium text-xs text-neutral-800 dark:text-neutral-200">
+                      {language === 'ar'
+                        ? 'رابط التحميل الخارجي (مثل Google Drive أو Mega أو رابط مباشر):'
+                        : 'External Download URL (e.g. Google Drive, Mega, or Direct Link):'}
+                    </label>
+                    {editingProduct?.downloadUrl && editingProduct.downloadUrl.startsWith('http') && (
+                      <a
+                        href={editingProduct.downloadUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] text-amber-700 dark:text-amber-300 hover:underline inline-flex items-center gap-1 font-semibold"
+                      >
+                        <ExternalLink className="w-2.5 h-2.5" />
+                        <span>{language === 'ar' ? 'تجربة الرابط' : 'Test Link'}</span>
+                      </a>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={editingProduct?.downloadUrl || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      let provider = editingProduct?.downloadProvider || 'direct';
+                      if (val.includes('drive.google.com')) {
+                        provider = 'google_drive';
+                      } else if (val.includes('mega.nz')) {
+                        provider = 'mega';
+                      }
+                      setEditingProduct({ ...editingProduct, downloadUrl: val, downloadProvider: provider });
+                    }}
+                    placeholder={
+                      editingProduct?.downloadProvider === 'google_drive'
+                        ? 'https://drive.google.com/file/d/...'
+                        : editingProduct?.downloadProvider === 'mega'
+                        ? 'https://mega.nz/file/...'
+                        : 'https://... أو #download'
+                    }
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 font-mono text-xs text-neutral-900 dark:text-neutral-100 focus:ring-1 focus:ring-amber-500"
+                  />
+                  <div className="flex items-start gap-1.5 mt-1 text-[11px] text-neutral-600 dark:text-neutral-400">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                    <span>
+                      {language === 'ar'
+                        ? 'سيوجه زر التحميل في الموقع الزائر فورياً إلى هذا الرابط الخارجي عند النقر، مع توفير أداة نسخ كلمة المرور بنقرة واحدة إذا كانت محددة.'
+                        : 'The frontend download button will directly route the visitor to this external URL when clicked, offering a 1-click password copy tool if set.'}
+                    </span>
+                  </div>
+                </div>
+              </div>
               <div className="flex justify-end gap-2 pt-2 border-t border-neutral-100 dark:border-neutral-800">
                 <button
                   type="button"
@@ -1552,6 +1689,58 @@ jobs:
                   className="w-full px-3 py-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 font-mono text-[11px]"
                 />
               </div>
+              {/* Download Provider Selection */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block font-medium mb-1">
+                    {language === 'ar' ? 'مصدر التحميل (سيرفر / جوجل درايف / ميجا)' : 'Download Source'}
+                  </label>
+                  <select
+                    value={editingDownload?.downloadProvider || 'direct'}
+                    onChange={(e) => setEditingDownload({ ...editingDownload, downloadProvider: e.target.value as any })}
+                    className="w-full px-3 py-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 font-medium"
+                  >
+                    <option value="direct">{language === 'ar' ? 'خادم المنصة المباشر' : 'Direct Server'}</option>
+                    <option value="google_drive">Google Drive (جوجل درايف)</option>
+                    <option value="mega">MEGA.nz (موقع ميجا)</option>
+                    <option value="custom">{language === 'ar' ? 'سحابة خارجية (MediaFire / Custom)' : 'External Cloud Mirror'}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-medium mb-1">
+                    {language === 'ar' ? 'كلمة مرور فك الضغط (اختياري)' : 'Archive Password (Optional)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={editingDownload?.archivePassword || ''}
+                    onChange={(e) => setEditingDownload({ ...editingDownload, archivePassword: e.target.value })}
+                    placeholder={language === 'ar' ? 'مثال: SM2@pass' : 'e.g. SM2@pass'}
+                    className="w-full px-3 py-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 font-mono text-xs"
+                  />
+                </div>
+              </div>
+
+              {/* Direct or External Download URL */}
+              <div>
+                <label className="block font-medium mb-1">
+                  {language === 'ar' ? 'رابط التحميل المباشر أو رابط التخزين الخارجي' : 'Download Link (Direct / Google Drive / MEGA)'}
+                </label>
+                <input
+                  type="text"
+                  value={editingDownload?.directUrl || ''}
+                  onChange={(e) => setEditingDownload({ ...editingDownload, directUrl: e.target.value })}
+                  placeholder={
+                    editingDownload?.downloadProvider === 'google_drive'
+                      ? 'https://drive.google.com/file/d/...'
+                      : editingDownload?.downloadProvider === 'mega'
+                      ? 'https://mega.nz/file/...'
+                      : 'https://github.com/releases/download/v2.5.0/SM2_Setup.msi'
+                  }
+                  className="w-full px-3 py-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 font-mono text-[11px]"
+                />
+              </div>
+
               <div>
                 <label className="block font-medium mb-1">{language === 'ar' ? 'ملاحظات الإصدار (سيسجل في Changelog تلقائياً)' : 'Release Notes (Auto Changelog)'}</label>
                 <textarea

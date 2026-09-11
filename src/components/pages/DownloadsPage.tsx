@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Sparkles,
   Info,
+  Lock,
 } from 'lucide-react';
 
 interface DownloadsPageProps {
@@ -33,11 +34,17 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
   onSubscribeEmail,
 }) => {
   const [copiedShaId, setCopiedShaId] = useState<string | null>(null);
+  const [copiedPassId, setCopiedPassId] = useState<string | null>(null);
   const [selectedPlatform, setSelectedPlatform] = useState<string>('all');
   const [showChangelogModal, setShowChangelogModal] = useState(false);
   const [emailInput, setEmailInput] = useState('');
   const [subscribed, setSubscribed] = useState(false);
   const [detectedOs, setDetectedOs] = useState<'windows' | 'macos' | 'linux' | 'android'>('windows');
+  const [downloadNotice, setDownloadNotice] = useState<{
+    fileName: string;
+    provider: string;
+    password?: string;
+  } | null>(null);
 
   const t = translations[language];
 
@@ -61,10 +68,38 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
     setTimeout(() => setCopiedShaId(null), 2000);
   };
 
+  const handleCopyPassword = (id: string, pass: string) => {
+    navigator.clipboard.writeText(pass);
+    setCopiedPassId(id);
+    setTimeout(() => setCopiedPassId(null), 2500);
+  };
+
   const handleDownloadClick = (file: DownloadFile) => {
-    // Trigger download simulation with notification
+    if (file.archivePassword) {
+      navigator.clipboard.writeText(file.archivePassword);
+      setCopiedPassId(file.id);
+    }
+
+    setDownloadNotice({
+      fileName: file.fileName,
+      provider: file.downloadProvider || 'direct',
+      password: file.archivePassword,
+    });
+    setTimeout(() => setDownloadNotice(null), 7000);
+
+    // If external link (e.g. Google Drive, MEGA.nz, or valid external URL)
+    if (
+      file.directUrl &&
+      (file.directUrl.startsWith('http://') || file.directUrl.startsWith('https://')) &&
+      !file.directUrl.includes('example.com')
+    ) {
+      window.open(file.directUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // Direct simulated download
     const element = document.createElement('a');
-    const fileContent = `SM+2 Official Binary Release\nPackage: ${file.fileName}\nVersion: ${file.version}\nSHA-256: ${file.sha256}\nBuilt: ${file.releaseDate}\nEngine: SM+2 Studio\nVerified: Cryptographically Signed by SM+2 Maintainers.`;
+    const fileContent = `SM+2 Official Binary Release\nPackage: ${file.fileName}\nVersion: ${file.version}\nSHA-256: ${file.sha256}\nBuilt: ${file.releaseDate}\nEngine: SM+2 Studio\nHosting: ${file.downloadProvider || 'direct'}\nDecompression Password: ${file.archivePassword || 'None'}\nVerified: Cryptographically Signed by SM+2 Maintainers.`;
     const blob = new Blob([fileContent], { type: 'text/plain' });
     element.href = URL.createObjectURL(blob);
     element.download = file.fileName.endsWith('.txt') ? file.fileName : `${file.fileName}.txt`;
@@ -132,6 +167,43 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Download Notice Toast / Notification Banner */}
+        {downloadNotice && (
+          <div
+            id="download-active-toast"
+            className="p-4 rounded-xl bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/40 max-w-2xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md"
+          >
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-300">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>
+                  {language === 'ar'
+                    ? `جاري بدء تحميل: ${downloadNotice.fileName}`
+                    : `Starting download: ${downloadNotice.fileName}`}
+                </span>
+              </div>
+              {downloadNotice.password && (
+                <div className="flex items-center gap-2 text-xs text-neutral-700 dark:text-neutral-300">
+                  <Lock className="w-3.5 h-3.5 text-amber-600" />
+                  <span>{language === 'ar' ? 'كلمة مرور فك الضغط (تم النسخ تلقائياً):' : 'Archive Password (auto-copied):'}</span>
+                  <span className="font-mono font-bold text-amber-800 dark:text-amber-300 bg-white/70 dark:bg-neutral-900/70 px-2 py-0.5 rounded border border-amber-500/20 select-all">
+                    {downloadNotice.password}
+                  </span>
+                </div>
+              )}
+            </div>
+            {downloadNotice.password && (
+              <button
+                type="button"
+                onClick={() => handleCopyPassword('toast', downloadNotice.password!)}
+                className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shrink-0 shadow-xs"
+              >
+                {copiedPassId === 'toast' ? (language === 'ar' ? 'تم النسخ ✓' : 'Copied ✓') : (language === 'ar' ? 'نسخ الباسورد' : 'Copy Password')}
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Recommended Download Hero Card */}
         {recommendedFile && (
@@ -229,13 +301,23 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
                           {getPlatformIcon(file.platform)}
                         </div>
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="font-serif text-base font-bold text-neutral-900 dark:text-neutral-100">
                               {title}
                             </h4>
                             {file.isLatest && (
                               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 font-bold border border-emerald-500/20">
                                 Latest
+                              </span>
+                            )}
+                            {file.downloadProvider === 'google_drive' && (
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-700 dark:text-blue-300 font-bold border border-blue-500/20">
+                                Google Drive
+                              </span>
+                            )}
+                            {file.downloadProvider === 'mega' && (
+                              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-red-500/10 text-red-700 dark:text-red-300 font-bold border border-red-500/20">
+                                MEGA.nz
                               </span>
                             )}
                           </div>
@@ -249,23 +331,45 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
                         {notes}
                       </p>
 
-                      {/* SHA-256 Checksum with Copy */}
-                      <div className="flex items-center gap-2 text-[11px] font-mono bg-neutral-100 dark:bg-neutral-800/80 px-2.5 py-1 rounded max-w-xl text-neutral-600 dark:text-neutral-400">
-                        <span className="font-bold text-neutral-400 uppercase">SHA-256:</span>
-                        <span className="truncate flex-1" title={file.sha256}>
-                          {file.sha256}
-                        </span>
-                        <button
-                          onClick={() => handleCopySha(file.id, file.sha256)}
-                          className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white p-1"
-                          title={t.common.copy}
-                        >
-                          {isCopied ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-500" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+                        {/* SHA-256 Checksum with Copy */}
+                        <div className="flex items-center gap-2 text-[11px] font-mono bg-neutral-100 dark:bg-neutral-800/80 px-2.5 py-1 rounded max-w-xl text-neutral-600 dark:text-neutral-400">
+                          <span className="font-bold text-neutral-400 uppercase">SHA-256:</span>
+                          <span className="truncate flex-1 max-w-[200px] sm:max-w-[260px]" title={file.sha256}>
+                            {file.sha256}
+                          </span>
+                          <button
+                            onClick={() => handleCopySha(file.id, file.sha256)}
+                            className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white p-1"
+                            title={t.common.copy}
+                          >
+                            {isCopied ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-500" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        </div>
+
+                        {/* Archive Password (if provided) */}
+                        {file.archivePassword && (
+                          <div className="flex items-center gap-2 text-[11px] font-mono bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/30 px-2.5 py-1 rounded text-amber-900 dark:text-amber-300">
+                            <Lock className="w-3 h-3 text-amber-600" />
+                            <span className="font-bold">{language === 'ar' ? 'باسورد فك الضغط:' : 'Pass:'}</span>
+                            <span className="font-bold select-all">{file.archivePassword}</span>
+                            <button
+                              onClick={() => handleCopyPassword(file.id, file.archivePassword!)}
+                              className="text-amber-700 dark:text-amber-300 hover:text-amber-900 p-0.5"
+                              title={language === 'ar' ? 'نسخ الباسورد' : 'Copy Password'}
+                            >
+                              {copiedPassId === file.id ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -277,7 +381,16 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
                         className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-white text-xs font-semibold shadow-sm transition-colors"
                       >
                         <Download className="w-3.5 h-3.5" />
-                        <span>{t.common.downloadNow}</span>
+                        <span>
+                          {file.downloadProvider === 'google_drive'
+                            ? (language === 'ar' ? 'تحميل (Google Drive)' : 'Google Drive')
+                            : file.downloadProvider === 'mega'
+                            ? (language === 'ar' ? 'تحميل (MEGA.nz)' : 'MEGA.nz')
+                            : t.common.downloadNow}
+                        </span>
+                        {(file.downloadProvider === 'google_drive' || file.downloadProvider === 'mega') && (
+                          <ExternalLink className="w-3 h-3 opacity-60" />
+                        )}
                       </button>
                     </div>
                   </div>
