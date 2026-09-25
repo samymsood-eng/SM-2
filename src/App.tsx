@@ -17,6 +17,7 @@ import {
   NotificationLog,
   SupportTicket,
   GitHubSettings,
+  LicenseRequest,
 } from './types';
 import {
   initialProducts,
@@ -28,6 +29,7 @@ import {
   initialNotificationLogs,
   initialSupportTickets,
   initialGitHubSettings,
+  initialLicenseRequests,
 } from './data/initialData';
 import {
   subscribeProducts,
@@ -49,6 +51,9 @@ import {
   saveSubscriberToCloud,
   saveTicketToCloud,
   saveGitHubSettingsToCloud,
+  subscribeLicenseRequests,
+  saveLicenseRequestToCloud,
+  deleteLicenseRequestFromCloud,
 } from './lib/firestoreService';
 import {
   NotificationStatus,
@@ -64,6 +69,7 @@ import { HomePage } from './components/pages/HomePage';
 import { SalesPage } from './components/pages/SalesPage';
 import { DownloadsPage } from './components/pages/DownloadsPage';
 import { DeveloperSupportPage } from './components/pages/DeveloperSupportPage';
+import { LicenseActivationPage } from './components/pages/LicenseActivationPage';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { GitHubModal } from './components/modals/GitHubModal';
 import { ScrollToTop } from './components/ScrollToTop';
@@ -173,6 +179,11 @@ export default function App() {
     return saved ? JSON.parse(saved) : initialGitHubSettings;
   });
 
+  const [licenseRequests, setLicenseRequests] = useState<LicenseRequest[]>(() => {
+    const saved = localStorage.getItem('sm2_licenses');
+    return saved ? JSON.parse(saved) : initialLicenseRequests;
+  });
+
   const [isGithubModalOpen, setIsGithubModalOpen] = useState(false);
 
   // --- REAL-TIME FIRESTORE SUBSCRIPTIONS ---
@@ -185,6 +196,7 @@ export default function App() {
     const unsubSubscribers = subscribeSubscribers((items) => setSubscribers(items));
     const unsubTickets = subscribeSupportTickets((items) => setSupportTickets(items));
     const unsubGithub = subscribeGitHubSettings((settings) => setGithubSettings(settings));
+    const unsubLicenses = subscribeLicenseRequests((items) => setLicenseRequests(items));
 
     return () => {
       unsubProducts();
@@ -195,6 +207,7 @@ export default function App() {
       unsubSubscribers();
       unsubTickets();
       unsubGithub();
+      unsubLicenses();
     };
   }, []);
 
@@ -253,6 +266,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('sm2_admin_users', JSON.stringify(adminUsers));
   }, [adminUsers]);
+
+  useEffect(() => {
+    localStorage.setItem('sm2_licenses', JSON.stringify(licenseRequests));
+  }, [licenseRequests]);
 
   useEffect(() => {
     localStorage.setItem('sm2_subscribers', JSON.stringify(subscribers));
@@ -413,6 +430,21 @@ export default function App() {
     setGithubSettings(newSettings);
   };
 
+  const handleAddLicenseRequest = (newReq: LicenseRequest) => {
+    saveLicenseRequestToCloud(newReq);
+    setLicenseRequests((prev) => [newReq, ...prev.filter((r) => r.id !== newReq.id)]);
+  };
+
+  const handleUpdateLicenseRequest = (updatedReq: LicenseRequest) => {
+    saveLicenseRequestToCloud(updatedReq);
+    setLicenseRequests((prev) => prev.map((r) => (r.id === updatedReq.id ? updatedReq : r)));
+  };
+
+  const handleDeleteLicenseRequest = (reqId: string) => {
+    deleteLicenseRequestFromCloud(reqId);
+    setLicenseRequests((prev) => prev.filter((r) => r.id !== reqId));
+  };
+
   const handleSendNotification = (subject: string, version: string, messageBody: string) => {
     const newLog: NotificationLog = {
       id: `notif-${Date.now()}`,
@@ -549,6 +581,16 @@ export default function App() {
           />
         )}
 
+        {currentPage === 'licenses' && (
+          <LicenseActivationPage
+            products={products}
+            licenseRequests={licenseRequests}
+            onSubmitLicenseRequest={handleAddLicenseRequest}
+            githubSettings={githubSettings}
+            language={language}
+          />
+        )}
+
         {currentPage === 'admin' && (
           <AdminDashboard
             currentUser={currentUser}
@@ -570,6 +612,10 @@ export default function App() {
             githubSettings={githubSettings}
             onUpdateGithubSettings={handleUpdateGithubSettings}
             language={language}
+            licenseRequests={licenseRequests}
+            onUpdateLicenseRequest={handleUpdateLicenseRequest}
+            onAddLicenseRequest={handleAddLicenseRequest}
+            onDeleteLicenseRequest={handleDeleteLicenseRequest}
           />
         )}
       </main>

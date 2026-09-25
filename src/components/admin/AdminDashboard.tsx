@@ -56,6 +56,10 @@ import {
   requestNotificationPermission,
   getNotificationStatus,
 } from '../../lib/webNotifications';
+import {
+  buildSerialActivatedTelegramMessage,
+  sendTelegramNotification,
+} from '../../services/telegramService';
 
 interface AdminDashboardProps {
   currentUser: AdminUser | null;
@@ -79,6 +83,7 @@ interface AdminDashboardProps {
   language: Language;
   licenseRequests?: LicenseRequest[];
   onUpdateLicenseRequest?: (req: LicenseRequest) => void;
+  onAddLicenseRequest?: (req: LicenseRequest) => void;
   onDeleteLicenseRequest?: (id: string) => void;
 }
 
@@ -104,6 +109,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   language,
   licenseRequests = [],
   onUpdateLicenseRequest,
+  onAddLicenseRequest,
   onDeleteLicenseRequest,
 }) => {
   const t = translations[language];
@@ -155,6 +161,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Users modal/editor state
   const [editingUser, setEditingUser] = useState<Partial<AdminUser> | null>(null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+
+  // Manual license creation modal state
+  const [manualLicense, setManualLicense] = useState<Partial<LicenseRequest>>({
+    duration: 'trial_1m',
+    status: 'pending',
+  });
+  const [isManualLicenseModalOpen, setIsManualLicenseModalOpen] = useState(false);
 
   // GitHub Release simulation state
   const [ghTag, setGhTag] = useState('v2.5.0');
@@ -766,6 +779,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => {
+                      setManualLicense({
+                        productName: products[0]?.name || 'محرك واستوديو SM+2 الأساسي',
+                        duration: 'trial_1m',
+                        status: 'pending',
+                      });
+                      setIsManualLicenseModalOpen(true);
+                    }}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-white font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{language === 'ar' ? 'إصدار ترخيص يدوي' : 'Issue License'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
                       const pendingHwids = licenseRequests
                         .filter((r) => r.status === 'pending')
                         .map((r) => `${r.clientName} (${r.productName} - ${r.duration}):\n${r.hardwareId}`)
@@ -821,13 +849,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                         // Also notify Telegram if configured
                         if (githubSettings?.enableTelegramNotifications && githubSettings?.telegramBotToken && githubSettings?.telegramChatId) {
-                          import('../../services/telegramService').then(({ buildSerialActivatedTelegramMessage, sendTelegramNotification }) => {
-                            const msg = buildSerialActivatedTelegramMessage(updated);
-                            sendTelegramNotification(msg, {
-                              botToken: githubSettings.telegramBotToken,
-                              chatId: githubSettings.telegramChatId,
-                              enabled: githubSettings.enableTelegramNotifications,
-                            });
+                          const msg = buildSerialActivatedTelegramMessage(updated);
+                          sendTelegramNotification(msg, {
+                            botToken: githubSettings.telegramBotToken,
+                            chatId: githubSettings.telegramChatId,
+                            enabled: githubSettings.enableTelegramNotifications,
                           });
                         }
 
@@ -2942,6 +2968,191 @@ jobs:
                   className="px-4 py-2 rounded bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 font-bold"
                 >
                   {t.common.save}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MANUAL LICENSE MODAL */}
+      {isManualLicenseModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 shadow-2xl space-y-4 text-xs max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-neutral-100 dark:border-neutral-800 pb-3">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                <h4 className="font-serif font-bold text-base text-neutral-900 dark:text-neutral-100">
+                  {language === 'ar' ? 'إصدار ترخيص يدوي جديد' : 'Issue New License'}
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsManualLicenseModalOpen(false)}
+                className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!manualLicense.clientName?.trim() || !manualLicense.hardwareId?.trim()) return;
+
+                const hasSerial = Boolean(manualLicense.serialKey?.trim());
+                const newReq: LicenseRequest = {
+                  id: manualLicense.id || `LIC-${Math.floor(10000 + Math.random() * 90000)}`,
+                  clientName: manualLicense.clientName.trim(),
+                  clientEmail: manualLicense.clientEmail?.trim() || '',
+                  clientPhone: manualLicense.clientPhone?.trim() || '',
+                  productName: manualLicense.productName || products[0]?.name || 'محرك واستوديو SM+2 الأساسي',
+                  hardwareId: manualLicense.hardwareId.trim().toUpperCase(),
+                  duration: manualLicense.duration || 'trial_1m',
+                  paymentReference: manualLicense.paymentReference?.trim(),
+                  status: hasSerial ? 'active' : (manualLicense.status || 'pending'),
+                  serialKey: manualLicense.serialKey?.trim() || undefined,
+                  createdAt: manualLicense.createdAt || new Date().toISOString().replace('T', ' ').substring(0, 16),
+                  activatedAt: hasSerial
+                    ? manualLicense.activatedAt || new Date().toISOString().replace('T', ' ').substring(0, 16)
+                    : undefined,
+                };
+
+                if (onAddLicenseRequest) {
+                  onAddLicenseRequest(newReq);
+                } else if (onUpdateLicenseRequest) {
+                  onUpdateLicenseRequest(newReq);
+                }
+
+                setIsManualLicenseModalOpen(false);
+                setManualLicense({ duration: 'trial_1m', status: 'pending' });
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label className="block font-medium mb-1">{language === 'ar' ? 'اسم العميل *' : 'Client Name *'}</label>
+                <input
+                  type="text"
+                  required
+                  placeholder={language === 'ar' ? 'مثال: أحمد محمود' : 'e.g. John Doe'}
+                  value={manualLicense.clientName || ''}
+                  onChange={(e) => setManualLicense({ ...manualLicense, clientName: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium mb-1">{language === 'ar' ? 'البريد الإلكتروني' : 'Client Email'}</label>
+                  <input
+                    type="email"
+                    placeholder="client@example.com"
+                    value={manualLicense.clientEmail || ''}
+                    onChange={(e) => setManualLicense({ ...manualLicense, clientEmail: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block font-medium mb-1">{language === 'ar' ? 'رقم الهاتف / الواتساب' : 'Phone / WhatsApp'}</label>
+                  <input
+                    type="tel"
+                    placeholder="+96650..."
+                    value={manualLicense.clientPhone || ''}
+                    onChange={(e) => setManualLicense({ ...manualLicense, clientPhone: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-medium mb-1">{language === 'ar' ? 'البرنامج المراد ترخيصه' : 'Target Product'}</label>
+                  <select
+                    value={manualLicense.productName || (products[0]?.name || '')}
+                    onChange={(e) => setManualLicense({ ...manualLicense, productName: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
+                  >
+                    {products.map((p) => (
+                      <option key={p.id} value={p.name}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-medium mb-1">{language === 'ar' ? 'مدة وخطة الترخيص' : 'Plan / Duration'}</label>
+                  <select
+                    value={manualLicense.duration || 'trial_1m'}
+                    onChange={(e) => setManualLicense({ ...manualLicense, duration: e.target.value as any })}
+                    className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
+                  >
+                    <option value="trial_1m">{language === 'ar' ? 'فترة تجريبية (شهر)' : 'Trial 1 Month'}</option>
+                    <option value="sub_6m">{language === 'ar' ? 'اشتراك 6 أشهر' : '6 Months Subscription'}</option>
+                    <option value="sub_1y">{language === 'ar' ? 'اشتراك سنوي (سنة)' : '1 Year Subscription'}</option>
+                    <option value="lifetime">{language === 'ar' ? 'ترخيص دائم (مدى الحياة)' : 'Lifetime Permanent'}</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-medium mb-1">
+                  <span>{language === 'ar' ? 'بصمة جهاز العميل (Hardware ID) *' : 'Hardware ID (HWID) *'}</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="BFEBFBFF000906EA-MB-X570-..."
+                  value={manualLicense.hardwareId || ''}
+                  onChange={(e) => setManualLicense({ ...manualLicense, hardwareId: e.target.value.toUpperCase() })}
+                  className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-mono uppercase"
+                />
+                <p className="text-[10px] text-neutral-400 mt-1">
+                  {language === 'ar' ? 'انسخ البصمة التي أرسلها لك العميل من برنامجه والصقها هنا.' : 'Paste the HWID provided by the client.'}
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 space-y-1">
+                <label className="block font-medium text-amber-900 dark:text-amber-200">
+                  {language === 'ar' ? 'السيريال المستخرج من أداتك على حاسوبك (اختياري الآن):' : 'Serial Key from your local PC tool (Optional):'}
+                </label>
+                <input
+                  type="text"
+                  placeholder="SM2-PRO-XXXX-XXXX-XXXX-2026"
+                  value={manualLicense.serialKey || ''}
+                  onChange={(e) => setManualLicense({ ...manualLicense, serialKey: e.target.value.toUpperCase() })}
+                  className="w-full px-3 py-2 rounded-lg border border-amber-300 dark:border-amber-800 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-mono font-bold uppercase"
+                />
+                <p className="text-[10px] text-amber-700 dark:text-amber-300">
+                  {language === 'ar'
+                    ? 'الصق السيريال الذي ولدته من أداتك على جهازك لتفعيله فوراً، أو اتركه فارغاً لاعتماده لاحقاً.'
+                    : 'Paste the serial from your local PC tool to activate instantly, or leave blank to set later.'}
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-medium mb-1">{language === 'ar' ? 'رقم الحوالة أو إيصال الدفع (اختياري)' : 'Payment Reference (Optional)'}</label>
+                <input
+                  type="text"
+                  placeholder="PAY-XXXXXX / نقدي / حوالة"
+                  value={manualLicense.paymentReference || ''}
+                  onChange={(e) => setManualLicense({ ...manualLicense, paymentReference: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-neutral-100 dark:border-neutral-800">
+                <button
+                  type="button"
+                  onClick={() => setIsManualLicenseModalOpen(false)}
+                  className="px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
+                >
+                  {t.common.cancel}
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 font-bold hover:bg-neutral-800 dark:hover:bg-white transition-colors cursor-pointer"
+                >
+                  {language === 'ar' ? 'حفظ وإصدار الترخيص' : 'Save & Issue License'}
                 </button>
               </div>
             </form>
