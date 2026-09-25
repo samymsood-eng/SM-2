@@ -589,6 +589,7 @@ export const initialAdminUsers: AdminUser[] = [
     id: 'usr-super-1',
     username: 'sm2_director',
     email: 'admin@sm2.dev',
+    password: 'SM2@Admin2026',
     fullName: 'المشرف العام - المهندس سمير (SM+2 Lead)',
     role: 'super_admin',
     permissions: {
@@ -607,6 +608,7 @@ export const initialAdminUsers: AdminUser[] = [
     id: 'usr-editor-2',
     username: 'omar_docs',
     email: 'omar@sm2.dev',
+    password: 'SM2@Editor2026',
     fullName: 'عمر الفاروق - محرر التوثيق والمحتوى',
     role: 'editor',
     permissions: {
@@ -625,6 +627,7 @@ export const initialAdminUsers: AdminUser[] = [
     id: 'usr-support-3',
     username: 'sara_support',
     email: 'sara@sm2.dev',
+    password: 'SM2@Support2026',
     fullName: 'سارة المنصور - مهندسة الدعم الفني',
     role: 'support_agent',
     permissions: {

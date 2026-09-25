@@ -136,7 +136,21 @@ export default function App() {
 
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>(() => {
     const saved = localStorage.getItem('sm2_admin_users');
-    return saved ? JSON.parse(saved) : initialAdminUsers;
+    if (saved) {
+      try {
+        const parsed: AdminUser[] = JSON.parse(saved);
+        return parsed.map((u) => {
+          if (!u.password) {
+            const init = initialAdminUsers.find((i) => i.id === u.id || i.email === u.email);
+            return { ...u, password: init?.password || 'SM2@Admin2026' };
+          }
+          return u;
+        });
+      } catch {
+        return initialAdminUsers;
+      }
+    }
+    return initialAdminUsers;
   });
 
   const [subscribers, setSubscribers] = useState<EmailSubscriber[]>(() => {

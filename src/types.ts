@@ -104,6 +104,7 @@ export interface AdminUser {
   id: string;
   username: string;
   email: string;
+  password?: string;
   fullName: string;
   role: AdminRole;
   permissions: AdminPermissions;

@@ -191,7 +191,15 @@ export function subscribeAdminUsers(onUpdate: (users: AdminUser[]) => void) {
         onUpdate(initialAdminUsers);
       } else {
         const items: AdminUser[] = [];
-        snapshot.forEach((d) => items.push(d.data() as AdminUser));
+        snapshot.forEach((d) => {
+          const u = d.data() as AdminUser;
+          if (!u.password) {
+            const init = initialAdminUsers.find((i) => i.id === u.id || i.email === u.email);
+            items.push({ ...u, password: init?.password || 'SM2@Admin2026' });
+          } else {
+            items.push(u);
+          }
+        });
         onUpdate(items);
       }
     },

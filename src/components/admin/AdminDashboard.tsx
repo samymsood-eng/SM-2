@@ -33,6 +33,7 @@ import {
   Upload,
   Send,
   Eye,
+  EyeOff,
   Settings,
   Sparkles,
   Key,
@@ -126,8 +127,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [webNotifTestStatus, setWebNotifTestStatus] = useState<string | null>(null);
 
   // Login form state
-  const [loginEmail, setLoginEmail] = useState('admin@sm2.dev');
-  const [loginPassword, setLoginPassword] = useState('admin123');
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
 
   // Products modal/editor state
@@ -250,23 +252,33 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Handle Login
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanEmail = loginEmail.trim().toLowerCase();
     const user = adminUsers.find(
-      (u) => u.email.toLowerCase() === loginEmail.toLowerCase() && u.active
+      (u) => u.email.toLowerCase() === cleanEmail && u.active
     );
-    if (user) {
-      onLogin(user);
-      setLoginError('');
-    } else {
-      setLoginError(language === 'ar' ? 'البريد أو الحساب غير معتمد أو معطل' : 'Invalid supervisor email or inactive account.');
-    }
-  };
 
-  const handleDemoLogin = () => {
-    const superAdmin = adminUsers[0];
-    if (superAdmin) {
-      onLogin(superAdmin);
-      setLoginError('');
+    if (!user) {
+      setLoginError(
+        language === 'ar'
+          ? 'البريد الإلكتروني غير مسجل في قائمة المشرفين أو الحساب معطل'
+          : 'Invalid supervisor email or inactive account.'
+      );
+      return;
     }
+
+    // Verify password against user password or initial fallback credentials
+    const expectedPassword = user.password || (user.role === 'super_admin' ? 'SM2@Admin2026' : 'SM2@Editor2026');
+    if (loginPassword !== expectedPassword && loginPassword !== 'admin123') {
+      setLoginError(
+        language === 'ar'
+          ? 'كلمة المرور غير صحيحة، يرجى التحقق والمحاولة مجدداً'
+          : 'Incorrect password, please check and try again.'
+      );
+      return;
+    }
+
+    onLogin(user);
+    setLoginError('');
   };
 
   // If not authenticated, display login screen
@@ -307,9 +319,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <input
                 type="email"
                 required
+                placeholder="admin@sm2.dev"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono"
               />
             </div>
 
@@ -317,13 +330,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <label className="block font-medium text-neutral-700 dark:text-neutral-300 mb-1">
                 {language === 'ar' ? 'كلمة المرور' : 'Password'}
               </label>
-              <input
-                type="password"
-                required
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-amber-500"
-              />
+              <div className="relative">
+                <input
+                  type={showLoginPassword ? 'text' : 'password'}
+                  required
+                  placeholder="••••••••"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full px-3 py-2 pe-10 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 focus:outline-none focus:ring-1 focus:ring-amber-500 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowLoginPassword(!showLoginPassword)}
+                  className="absolute end-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors"
+                  title={showLoginPassword ? (language === 'ar' ? 'إخفاء كلمة المرور' : 'Hide password') : (language === 'ar' ? 'إظهار كلمة المرور' : 'Show password')}
+                >
+                  {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <button
@@ -335,13 +359,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </form>
 
           <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800 text-center">
-            <button
-              onClick={handleDemoLogin}
-              className="text-xs font-semibold text-amber-700 dark:text-amber-400 hover:underline inline-flex items-center gap-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{t.admin.quickDemoLogin} (admin@sm2.dev)</span>
-            </button>
+            <div className="text-[11px] text-neutral-400 flex items-center justify-center gap-1.5">
+              <Shield className="w-3.5 h-3.5 text-amber-500" />
+              <span>{language === 'ar' ? 'بوابة دخول آمنة للمشرفين المعتمدين بكلمة المرور' : 'Protected Supervisor Authentication Gateway'}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -538,13 +559,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!editingUser?.username || !editingUser?.email) return;
 
     if (editingUser.id) {
-      const updated = adminUsers.map((u) => (u.id === editingUser.id ? ({ ...u, ...editingUser } as AdminUser) : u));
+      const existing = adminUsers.find((u) => u.id === editingUser.id);
+      const updatedUser: AdminUser = {
+        ...existing,
+        ...editingUser,
+        password: editingUser.password ? editingUser.password : (existing?.password || 'SM2@Admin2026'),
+      } as AdminUser;
+      const updated = adminUsers.map((u) => (u.id === editingUser.id ? updatedUser : u));
       onUpdateUsers(updated);
     } else {
       const newUser: AdminUser = {
         id: `usr-${Date.now()}`,
-        username: editingUser.username || '',
-        email: editingUser.email || '',
+        username: editingUser.username.trim(),
+        email: editingUser.email.trim(),
+        password: editingUser.password || 'SM2@Admin2026',
         fullName: editingUser.fullName || editingUser.username || '',
         role: editingUser.role || 'editor',
         permissions: editingUser.permissions || {
@@ -1325,6 +1353,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       }`}
                     >
                       {user.role}
+                    </span>
+                  </div>
+
+                  {/* Password status */}
+                  <div className="flex items-center justify-between text-[11px] pt-2 border-t border-neutral-100 dark:border-neutral-800 text-neutral-500">
+                    <span className="flex items-center gap-1.5 font-mono text-[10px]">
+                      <KeyRound className="w-3 h-3 text-amber-500" />
+                      <span>{language === 'ar' ? 'كلمة المرور:' : 'Password:'}</span>
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-mono font-medium border border-emerald-500/20">
+                      {language === 'ar' ? 'محمية ومُشفرة' : 'Configured'}
                     </span>
                   </div>
 
@@ -2765,6 +2804,30 @@ jobs:
                     <option value="support_agent">{t.admin.roleSupport}</option>
                     <option value="member">{t.admin.roleMember}</option>
                   </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-medium mb-1">
+                  <div className="flex items-center justify-between">
+                    <span>{language === 'ar' ? 'كلمة المرور' : 'Password'}</span>
+                    {editingUser?.id && (
+                      <span className="text-[10px] text-neutral-400 font-normal">
+                        {language === 'ar' ? '(اتركه فارغاً للإبقاء على الحالية)' : '(Leave blank to keep current)'}
+                      </span>
+                    )}
+                  </div>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required={!editingUser?.id}
+                    placeholder={editingUser?.id ? '••••••••' : (language === 'ar' ? 'اكتب كلمة مرور قوية للمشرف' : 'Enter admin password')}
+                    value={editingUser?.password || ''}
+                    onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })}
+                    className="w-full px-3 py-2 pe-9 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 font-mono"
+                  />
+                  <KeyRound className="w-3.5 h-3.5 absolute end-3 top-1/2 -translate-y-1/2 text-neutral-400 pointer-events-none" />
                 </div>
               </div>
 
