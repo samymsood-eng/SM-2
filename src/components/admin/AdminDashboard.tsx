@@ -3338,7 +3338,6 @@ jobs:
                     className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
                   >
                     <option value="trial_3m">{language === 'ar' ? 'فترة تجريبية (3 أشهر)' : 'Trial 3 Months'}</option>
-                    <option value="sub_3m">{language === 'ar' ? 'اشتراك 3 أشهر' : '3 Months Subscription'}</option>
                     <option value="sub_6m">{language === 'ar' ? 'اشتراك 6 أشهر' : '6 Months Subscription'}</option>
                     <option value="sub_1y">{language === 'ar' ? 'اشتراك سنوي (سنة)' : '1 Year Subscription'}</option>
                     <option value="lifetime">{language === 'ar' ? 'ترخيص دائم (مدى الحياة)' : 'Lifetime Permanent'}</option>

@@ -11,6 +11,8 @@ import {
   HelpCircle,
   Search,
   Check,
+  Wallet,
+  Smartphone,
 } from 'lucide-react';
 import { Language, LicenseRequest, LicenseDuration, Product, GitHubSettings } from '../../types';
 import {
@@ -104,8 +106,15 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
   const [searchedRequest, setSearchedRequest] = useState<LicenseRequest | null | undefined>(undefined);
   const [submittedRequest, setSubmittedRequest] = useState<LicenseRequest | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
+  const [copiedPhone, setCopiedPhone] = useState<string | null>(null);
   const [showHwidHelp, setShowHwidHelp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  const copyPhoneToClipboard = (phone: string) => {
+    navigator.clipboard.writeText(phone);
+    setCopiedPhone(phone);
+    setTimeout(() => setCopiedPhone(null), 2000);
+  };
 
   // Real-time validation
   const hwidValidation = validateHwid(hardwareId);
@@ -450,15 +459,30 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
                   >
                     <div className="font-semibold">{language === 'ar' ? 'ترخيص تجاري مدفوع' : 'Commercial License'}</div>
                     <div className="text-[10px] text-neutral-500 dark:text-neutral-400">
-                      {language === 'ar' ? '3 أشهر، سنة أو مدى الحياة' : '3 Months, 1 Year or Lifetime'}
+                      {language === 'ar' ? '6 أشهر، سنة كاملة أو مدى الحياة' : '6 Months, 1 Year or Lifetime'}
                     </div>
                   </button>
                 </div>
               </div>
 
+              {/* Free Trial Confirmation Card */}
+              {requestType === 'trial' && (
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 font-semibold text-emerald-800 dark:text-emerald-200">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>{language === 'ar' ? 'تم تحديد: فترة تجريبية مجانية (3 أشهر كاملة)' : 'Selected: Free Trial (3 Full Months)'}</span>
+                  </div>
+                  <p className="text-[11px] text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                    {language === 'ar'
+                      ? 'لا يتطلب هذا الخيار أي دفع أو تحويل مالي. سيتم تفعيل الترخيص التجريبي لجهازك للبصمة المدخلة بالأعلى فور اعتماد ومراجعة الطلب.'
+                      : 'No payment required. The trial license will be issued for your hardware ID above once approved.'}
+                  </p>
+                </div>
+              )}
+
               {/* Paid Options */}
               {requestType === 'paid' && (
-                <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-800 space-y-3">
+                <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-800 space-y-3.5">
                   <div>
                     <label className="block font-medium mb-1 text-neutral-800 dark:text-neutral-200">
                       {language === 'ar' ? 'مدة الترخيص المدفوع' : 'Duration'}
@@ -466,25 +490,88 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
                     <select
                       value={duration}
                       onChange={(e) => setDuration(e.target.value as LicenseDuration)}
-                      className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800"
+                      className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
                     >
-                      <option value="sub_3m">{language === 'ar' ? 'اشتراك 3 أشهر' : '3 Months'}</option>
                       <option value="sub_6m">{language === 'ar' ? 'اشتراك 6 أشهر' : '6 Months'}</option>
                       <option value="sub_1y">{language === 'ar' ? 'اشتراك سنة كاملة (موصى به)' : '1 Year (Standard)'}</option>
                       <option value="lifetime">{language === 'ar' ? 'ترخيص دائم مدى الحياة (Lifetime)' : 'Lifetime Perpetual'}</option>
                     </select>
                   </div>
 
+                  {/* Payment Details / Mobile Wallets */}
+                  <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-2.5">
+                    <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200 font-semibold text-xs">
+                      <Wallet className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span>{language === 'ar' ? 'طرق الدفع والتحويل المعتمدة (محفظة إلكترونية / كاش):' : 'Official Payment Wallets:'}</span>
+                    </div>
+
+                    <p className="text-[11px] text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                      {language === 'ar'
+                        ? 'يرجى تحويل قيمة الاشتراك إلى أحد أرقام المحافظ الإلكترونية التالية (كاش / إنستاباي / محفظة هاتف)، ثم كتابة رقم هاتفك المحوّل منه أو كود العملية أدناه:'
+                        : 'Please transfer subscription fees to one of the following mobile wallets, then enter your sender phone or transaction code below:'}
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-neutral-900 border border-amber-500/20 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <Smartphone className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                          <span className="font-mono font-bold text-neutral-900 dark:text-neutral-100 select-all tracking-wider">01124232344</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyPhoneToClipboard('01124232344')}
+                          className="text-[11px] text-amber-700 dark:text-amber-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                        >
+                          {copiedPhone === '01124232344' ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span className="text-emerald-600">{language === 'ar' ? 'تم النسخ' : 'Copied'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>{language === 'ar' ? 'نسخ' : 'Copy'}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between p-2 rounded-lg bg-white dark:bg-neutral-900 border border-amber-500/20 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <Smartphone className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                          <span className="font-mono font-bold text-neutral-900 dark:text-neutral-100 select-all tracking-wider">01287615566</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => copyPhoneToClipboard('01287615566')}
+                          className="text-[11px] text-amber-700 dark:text-amber-400 hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                        >
+                          {copiedPhone === '01287615566' ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-600" />
+                              <span className="text-emerald-600">{language === 'ar' ? 'تم النسخ' : 'Copied'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>{language === 'ar' ? 'نسخ' : 'Copy'}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block font-medium mb-1 text-neutral-800 dark:text-neutral-200">
-                      {language === 'ar' ? 'رقم الحوالة أو كود الفاتورة / إيصال الدفع *' : 'Payment / Invoice Reference *'}
+                      {language === 'ar' ? 'رقم الهاتف المحوّل منه أو كود العملية / إيصال الدفع *' : 'Sender Phone / Transaction Code / Receipt *'}
                     </label>
                     <input
                       type="text"
                       required={requestType === 'paid'}
                       value={paymentRef}
                       onChange={(e) => setPaymentRef(e.target.value)}
-                      placeholder="PAY-XXXXXX / VISA / STC Pay / إيصال"
+                      placeholder={language === 'ar' ? 'مثال: 010xxxxxxxx أو كود التحويل / إيصال الكاش' : 'e.g. 010xxxxxxxx or Receipt / Transaction ID'}
                       className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
                     />
                   </div>
