@@ -70,9 +70,12 @@ import { SalesPage } from './components/pages/SalesPage';
 import { DownloadsPage } from './components/pages/DownloadsPage';
 import { DeveloperSupportPage } from './components/pages/DeveloperSupportPage';
 import { LicenseActivationPage } from './components/pages/LicenseActivationPage';
-import { AdminDashboard } from './components/admin/AdminDashboard';
+const AdminDashboard = React.lazy(() =>
+  import('./components/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard }))
+);
 import { GitHubModal } from './components/modals/GitHubModal';
 import { ScrollToTop } from './components/ScrollToTop';
+import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 
 export default function App() {
   // --- STATE WITH LOCAL STORAGE PERSISTENCE ---
@@ -592,31 +595,42 @@ export default function App() {
         )}
 
         {currentPage === 'admin' && (
-          <AdminDashboard
-            currentUser={currentUser}
-            onLogin={handleLogin}
-            onLogout={handleLogout}
-            adminUsers={adminUsers}
-            onUpdateUsers={handleUpdateUsers}
-            products={products}
-            onUpdateProducts={handleUpdateProducts}
-            docs={docs}
-            onUpdateDocs={handleUpdateDocs}
-            downloads={downloads}
-            onUpdateDownloads={handleUpdateDownloads}
-            changelogs={changelogs}
-            onAddChangelog={handleAddChangelog}
-            subscribers={subscribers}
-            notificationLogs={notificationLogs}
-            onSendNotification={handleSendNotification}
-            githubSettings={githubSettings}
-            onUpdateGithubSettings={handleUpdateGithubSettings}
-            language={language}
-            licenseRequests={licenseRequests}
-            onUpdateLicenseRequest={handleUpdateLicenseRequest}
-            onAddLicenseRequest={handleAddLicenseRequest}
-            onDeleteLicenseRequest={handleDeleteLicenseRequest}
-          />
+          <React.Suspense
+            fallback={
+              <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
+                <div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">
+                  {language === 'ar' ? 'جارٍ تحميل لوحة الإدارة...' : 'Loading Admin Dashboard...'}
+                </p>
+              </div>
+            }
+          >
+            <AdminDashboard
+              currentUser={currentUser}
+              onLogin={handleLogin}
+              onLogout={handleLogout}
+              adminUsers={adminUsers}
+              onUpdateUsers={handleUpdateUsers}
+              products={products}
+              onUpdateProducts={handleUpdateProducts}
+              docs={docs}
+              onUpdateDocs={handleUpdateDocs}
+              downloads={downloads}
+              onUpdateDownloads={handleUpdateDownloads}
+              changelogs={changelogs}
+              onAddChangelog={handleAddChangelog}
+              subscribers={subscribers}
+              notificationLogs={notificationLogs}
+              onSendNotification={handleSendNotification}
+              githubSettings={githubSettings}
+              onUpdateGithubSettings={handleUpdateGithubSettings}
+              language={language}
+              licenseRequests={licenseRequests}
+              onUpdateLicenseRequest={handleUpdateLicenseRequest}
+              onAddLicenseRequest={handleAddLicenseRequest}
+              onDeleteLicenseRequest={handleDeleteLicenseRequest}
+            />
+          </React.Suspense>
         )}
       </main>
 
@@ -636,6 +650,9 @@ export default function App() {
         downloads={downloads}
         language={language}
       />
+
+      {/* Floating WhatsApp Support Button */}
+      <FloatingWhatsApp language={language} />
 
       {/* Floating Scroll to Top Button */}
       <ScrollToTop language={language} />
