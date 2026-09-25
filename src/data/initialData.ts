@@ -759,7 +759,7 @@ export const initialLicenseRequests: LicenseRequest[] = [
     clientPhone: '+966551234567',
     productName: 'محرك واستوديو SM+2 الأساسي',
     hardwareId: 'BFEBFBFF000906EA-MB-X570-AORUS-MASTER-9941A',
-    duration: 'trial_1m',
+    duration: 'trial_3m',
     status: 'pending',
     createdAt: '2026-09-17 14:20',
   },

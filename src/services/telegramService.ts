@@ -14,6 +14,8 @@ export function formatDurationLabel(duration: string, lang: 'ar' | 'en' = 'ar'):
       return lang === 'ar' ? 'فترة تجريبية (شهران)' : 'Trial (2 Months)';
     case 'trial_3m':
       return lang === 'ar' ? 'فترة تجريبية (3 أشهر)' : 'Trial (3 Months)';
+    case 'sub_3m':
+      return lang === 'ar' ? 'اشتراك مدفوع (3 أشهر)' : 'Subscription (3 Months)';
     case 'sub_6m':
       return lang === 'ar' ? 'اشتراك مدفوع (6 أشهر)' : 'Subscription (6 Months)';
     case 'sub_1y':

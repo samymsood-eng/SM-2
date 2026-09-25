@@ -76,7 +76,7 @@ export function calculateExpirationDate(duration: LicenseDuration): string | und
   const now = new Date();
   if (duration === 'trial_1m') now.setMonth(now.getMonth() + 1);
   else if (duration === 'trial_2m') now.setMonth(now.getMonth() + 2);
-  else if (duration === 'trial_3m') now.setMonth(now.getMonth() + 3);
+  else if (duration === 'trial_3m' || duration === 'sub_3m') now.setMonth(now.getMonth() + 3);
   else if (duration === 'sub_6m') now.setMonth(now.getMonth() + 6);
   else if (duration === 'sub_1y') now.setFullYear(now.getFullYear() + 1);
   return now.toISOString().split('T')[0];
@@ -96,7 +96,7 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
   const [selectedProduct, setSelectedProduct] = useState(products[0]?.name || 'SM-2 Core Engine Studio');
   const [hardwareId, setHardwareId] = useState('');
   const [requestType, setRequestType] = useState<'trial' | 'paid'>('trial');
-  const [duration, setDuration] = useState<LicenseDuration>('trial_1m');
+  const [duration, setDuration] = useState<LicenseDuration>('trial_3m');
   const [paymentRef, setPaymentRef] = useState('');
 
   // Status & Search state
@@ -118,7 +118,7 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
 
     setSubmitting(true);
     const newId = `LIC-${Math.floor(10000 + Math.random() * 90000)}`;
-    const effectiveDuration = requestType === 'trial' ? 'trial_1m' : duration;
+    const effectiveDuration = requestType === 'trial' ? 'trial_3m' : duration;
     const effectiveType = requestType === 'trial' ? 'trial' : (duration === 'lifetime' ? 'lifetime' : 'annual');
     const calculatedExpiry = calculateExpirationDate(effectiveDuration);
 
@@ -422,7 +422,7 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
                     type="button"
                     onClick={() => {
                       setRequestType('trial');
-                      setDuration('trial_1m');
+                      setDuration('trial_3m');
                     }}
                     className={`p-3 rounded-xl border text-left rtl:text-right transition-all cursor-pointer ${
                       requestType === 'trial'
@@ -432,7 +432,7 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
                   >
                     <div className="font-semibold">{language === 'ar' ? 'فترة تجريبية مجانية' : 'Free Trial'}</div>
                     <div className="text-[10px] text-neutral-500 dark:text-neutral-400">
-                      {language === 'ar' ? 'شهر واحد لتجربة البرنامج' : '1 Month Evaluation'}
+                      {language === 'ar' ? '3 أشهر لتجربة البرنامج' : '3 Months Evaluation'}
                     </div>
                   </button>
 
@@ -450,7 +450,7 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
                   >
                     <div className="font-semibold">{language === 'ar' ? 'ترخيص تجاري مدفوع' : 'Commercial License'}</div>
                     <div className="text-[10px] text-neutral-500 dark:text-neutral-400">
-                      {language === 'ar' ? 'سنة كاملة أو مدى الحياة' : '1 Year or Lifetime'}
+                      {language === 'ar' ? '3 أشهر، سنة أو مدى الحياة' : '3 Months, 1 Year or Lifetime'}
                     </div>
                   </button>
                 </div>
@@ -468,6 +468,7 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
                       onChange={(e) => setDuration(e.target.value as LicenseDuration)}
                       className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800"
                     >
+                      <option value="sub_3m">{language === 'ar' ? 'اشتراك 3 أشهر' : '3 Months'}</option>
                       <option value="sub_6m">{language === 'ar' ? 'اشتراك 6 أشهر' : '6 Months'}</option>
                       <option value="sub_1y">{language === 'ar' ? 'اشتراك سنة كاملة (موصى به)' : '1 Year (Standard)'}</option>
                       <option value="lifetime">{language === 'ar' ? 'ترخيص دائم مدى الحياة (Lifetime)' : 'Lifetime Perpetual'}</option>

@@ -222,7 +222,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Manual license creation modal state
   const [manualLicense, setManualLicense] = useState<Partial<LicenseRequest>>({
-    duration: 'trial_1m',
+    duration: 'trial_3m',
     status: 'pending',
   });
   const [isManualLicenseModalOpen, setIsManualLicenseModalOpen] = useState(false);
@@ -839,7 +839,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onClick={() => {
                       setManualLicense({
                         productName: products[0]?.name || 'محرك واستوديو SM+2 الأساسي',
-                        duration: 'trial_1m',
+                        duration: 'trial_3m',
                         status: 'pending',
                       });
                       setIsManualLicenseModalOpen(true);
@@ -1104,8 +1104,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               <td className="p-3">
                                 <div className="font-medium text-neutral-800 dark:text-neutral-200">{req.productName}</div>
                                 <div className="text-[10px] text-neutral-500 font-mono">
-                                  {req.duration === 'trial_1m'
+                                  {req.duration === 'trial_3m'
+                                    ? (language === 'ar' ? 'فترة تجريبية (3 أشهر)' : 'Trial 3M')
+                                    : req.duration === 'trial_1m'
                                     ? (language === 'ar' ? 'فترة تجريبية (شهر)' : 'Trial 1M')
+                                    : req.duration === 'sub_3m'
+                                    ? (language === 'ar' ? 'اشتراك 3 أشهر' : '3 Months')
                                     : req.duration === 'lifetime'
                                     ? (language === 'ar' ? 'مدى الحياة (دائم)' : 'Lifetime')
                                     : req.duration === 'sub_1y'
@@ -3233,8 +3237,8 @@ jobs:
                 if (!manualLicense.clientName?.trim() || !manualLicense.hardwareId?.trim()) return;
 
                 const hasSerial = Boolean(manualLicense.serialKey?.trim());
-                const effectiveDur = manualLicense.duration || 'trial_1m';
-                const effectiveType = manualLicense.licenseType || (effectiveDur === 'lifetime' ? 'lifetime' : 'annual');
+                const effectiveDur = manualLicense.duration || 'trial_3m';
+                const effectiveType = manualLicense.licenseType || (effectiveDur === 'lifetime' ? 'lifetime' : (effectiveDur.startsWith('trial_') ? 'trial' : 'annual'));
                 const effectiveExpiry = manualLicense.expiresAt || (effectiveDur === 'lifetime' ? undefined : calculateExpirationDate(effectiveDur));
 
                 const newReq: LicenseRequest = {
@@ -3263,7 +3267,7 @@ jobs:
                 }
 
                 setIsManualLicenseModalOpen(false);
-                setManualLicense({ duration: 'trial_1m', status: 'pending' });
+                setManualLicense({ duration: 'trial_3m', status: 'pending' });
               }}
               className="space-y-3"
             >
@@ -3320,7 +3324,7 @@ jobs:
                 <div>
                   <label className="block font-medium mb-1">{language === 'ar' ? 'مدة وخطة الترخيص' : 'Plan / Duration'}</label>
                   <select
-                    value={manualLicense.duration || 'trial_1m'}
+                    value={manualLicense.duration || 'trial_3m'}
                     onChange={(e) => {
                       const dur = e.target.value as any;
                       const calculated = calculateExpirationDate(dur);
@@ -3328,12 +3332,13 @@ jobs:
                         ...manualLicense,
                         duration: dur,
                         expiresAt: calculated,
-                        licenseType: dur === 'lifetime' ? 'lifetime' : (dur === 'trial_1m' ? 'trial' : 'annual'),
+                        licenseType: dur === 'lifetime' ? 'lifetime' : (dur.startsWith('trial_') ? 'trial' : 'annual'),
                       });
                     }}
                     className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
                   >
-                    <option value="trial_1m">{language === 'ar' ? 'فترة تجريبية (شهر)' : 'Trial 1 Month'}</option>
+                    <option value="trial_3m">{language === 'ar' ? 'فترة تجريبية (3 أشهر)' : 'Trial 3 Months'}</option>
+                    <option value="sub_3m">{language === 'ar' ? 'اشتراك 3 أشهر' : '3 Months Subscription'}</option>
                     <option value="sub_6m">{language === 'ar' ? 'اشتراك 6 أشهر' : '6 Months Subscription'}</option>
                     <option value="sub_1y">{language === 'ar' ? 'اشتراك سنوي (سنة)' : '1 Year Subscription'}</option>
                     <option value="lifetime">{language === 'ar' ? 'ترخيص دائم (مدى الحياة)' : 'Lifetime Permanent'}</option>

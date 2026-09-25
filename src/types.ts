@@ -169,7 +169,7 @@ export interface GitHubSettings {
   enableTelegramNotifications?: boolean;
 }
 
-export type LicenseDuration = 'trial_1m' | 'trial_2m' | 'trial_3m' | 'sub_6m' | 'sub_1y' | 'lifetime';
+export type LicenseDuration = 'trial_1m' | 'trial_2m' | 'trial_3m' | 'sub_3m' | 'sub_6m' | 'sub_1y' | 'lifetime';
 export type LicenseStatus = 'pending' | 'active' | 'rejected' | 'expired';
 
 export interface LicenseRequest {
