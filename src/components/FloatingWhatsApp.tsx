@@ -20,7 +20,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({
   return (
     <aside
       aria-label={language === 'ar' ? 'تواصل عبر واتساب' : 'WhatsApp Support'}
-      className="fixed bottom-6 start-6 z-40 flex items-center gap-3 pointer-events-none group"
+      className="fixed bottom-6 start-6 z-[100] flex items-center gap-3 pointer-events-none group"
     >
       <a
         href={whatsappUrl}

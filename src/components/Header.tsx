@@ -122,6 +122,7 @@ export const Header: React.FC<HeaderProps> = ({
   const currentLangObj = languagesList.find((l) => l.code === language) || languagesList[0];
 
   return (
+    <>
     <header
       ref={headerRef}
       id="main-header"
@@ -631,10 +632,11 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       </div>
+    </header>
 
-      {/* Mobile Drawer Menu with Backdrop Overlay (قائمة جانبية منسدلة واحترافية للهواتف الذكية) */}
+      {/* Mobile Drawer Menu with Backdrop Overlay — rendered OUTSIDE header to avoid z-index stacking context trap */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
+        <div className="fixed inset-0 z-[999] lg:hidden flex">
           {/* Backdrop Overlay */}
           <div
             id="mobile-drawer-backdrop"
@@ -990,6 +992,6 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       )}
-    </header>
+    </>
   );
 };
