@@ -84,7 +84,7 @@ export const DeveloperSupportPage: React.FC<DeveloperSupportPageProps> = ({
             <Code2 className="w-3.5 h-3.5 text-amber-600 stroke-[1.75]" />
             <span>{language === 'ar' ? 'هندسة النظم والدعم الفني المباشر' : 'Systems Engineering & Core Support'}</span>
           </div>
-          <h1 className="font-serif text-3xl sm:text-4xl font-black text-neutral-900 dark:text-neutral-100 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold font-sans text-neutral-900 dark:text-neutral-100 tracking-normal">
             {language === 'ar' ? 'الدعم الفني والمهندس المطور' : 'Technical Support & Lead Engineer'}
           </h1>
           <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 max-w-xl mx-auto">

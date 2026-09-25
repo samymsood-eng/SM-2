@@ -1,6 +1,6 @@
 export type Language = 'ar' | 'en' | 'fr';
 export type Theme = 'light' | 'dark';
-export type Page = 'home' | 'sales' | 'downloads' | 'developer' | 'admin';
+export type Page = 'home' | 'sales' | 'downloads' | 'developer' | 'admin' | 'licenses';
 
 export interface ProductReview {
   id: string;
@@ -161,4 +161,28 @@ export interface GitHubSettings {
   lastSync?: string;
   enableAutoRelease: boolean;
   webhookUrl?: string;
+  showGithubInHero?: boolean;
+  showGithubInFooter?: boolean;
+  telegramBotToken?: string;
+  telegramChatId?: string;
+  enableTelegramNotifications?: boolean;
+}
+
+export type LicenseDuration = 'trial_1m' | 'trial_2m' | 'trial_3m' | 'sub_6m' | 'sub_1y' | 'lifetime';
+export type LicenseStatus = 'pending' | 'active' | 'rejected' | 'expired';
+
+export interface LicenseRequest {
+  id: string;
+  clientName: string;
+  clientEmail: string;
+  clientPhone?: string;
+  productName: string;
+  hardwareId: string; // Motherboard + CPU Fingerprint
+  duration: LicenseDuration;
+  paymentReference?: string;
+  status: LicenseStatus;
+  serialKey?: string;
+  createdAt: string;
+  activatedAt?: string;
+  notes?: string;
 }

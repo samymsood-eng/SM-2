@@ -8,6 +8,7 @@ import {
   NotificationLog,
   SupportTicket,
   GitHubSettings,
+  LicenseRequest,
 } from '../types';
 
 export const initialProducts: Product[] = [
@@ -742,4 +743,36 @@ export const initialGitHubSettings: GitHubSettings = {
   lastSync: '2026-09-09 23:55',
   enableAutoRelease: true,
   webhookUrl: 'https://api.github.com/repos/samymsood-eng/SM-2',
+  showGithubInHero: false,
+  showGithubInFooter: false,
+  enableTelegramNotifications: false,
 };
+
+export const initialLicenseRequests: LicenseRequest[] = [
+  {
+    id: 'LIC-89241',
+    clientName: 'طارق عبد الله',
+    clientEmail: 'tariq.pro@gmail.com',
+    clientPhone: '+966551234567',
+    productName: 'محرك واستوديو SM+2 الأساسي',
+    hardwareId: 'BFEBFBFF000906EA-MB-X570-AORUS-MASTER-9941A',
+    duration: 'trial_1m',
+    status: 'pending',
+    createdAt: '2026-09-17 14:20',
+  },
+  {
+    id: 'LIC-94120',
+    clientName: 'خالد المنصوري',
+    clientEmail: 'khaled.almansoori@outlook.com',
+    clientPhone: '+971509876543',
+    productName: 'أداة المزامنة السحابية SM+2 Cloud Relay',
+    hardwareId: '178BFBFF00800F12-ASUSTEK-PRIME-Z690P-8812B',
+    duration: 'lifetime',
+    paymentReference: 'PAY-STC-98210344',
+    status: 'active',
+    serialKey: 'SM2-LIFE-9941-A882-B129-2026',
+    createdAt: '2026-09-16 11:05',
+    activatedAt: '2026-09-16 11:30',
+  },
+];
+

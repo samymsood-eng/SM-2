@@ -18,13 +18,18 @@ import {
   Sparkles,
   Info,
   Lock,
+  Bell,
+  BellRing,
 } from 'lucide-react';
+import { NotificationStatus } from '../../lib/webNotifications';
 
 interface DownloadsPageProps {
   downloads: DownloadFile[];
   changelogs: ChangelogEntry[];
   language: Language;
   onSubscribeEmail: (email: string) => boolean;
+  notificationStatus?: NotificationStatus;
+  onToggleNotifications?: () => void;
 }
 
 export const DownloadsPage: React.FC<DownloadsPageProps> = ({
@@ -32,6 +37,8 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
   changelogs,
   language,
   onSubscribeEmail,
+  notificationStatus,
+  onToggleNotifications,
 }) => {
   const [copiedShaId, setCopiedShaId] = useState<string | null>(null);
   const [copiedPassId, setCopiedPassId] = useState<string | null>(null);
@@ -149,7 +156,7 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>Cryptographically Signed & SHA-256 Validated</span>
           </div>
-          <h1 className="font-serif text-3xl sm:text-5xl font-black text-neutral-900 dark:text-neutral-100 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-sans text-neutral-900 dark:text-neutral-100 tracking-normal">
             {t.downloads.title}
           </h1>
           <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-400">
@@ -217,7 +224,7 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>{t.downloads.recommendedForYou}</span>
                 </div>
-                <h3 className="font-serif text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+                <h3 className="text-xl font-bold font-sans text-neutral-900 dark:text-neutral-100">
                   {language === 'ar' ? recommendedFile.title : recommendedFile.titleEn}
                 </h3>
                 <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400 font-mono">
@@ -417,7 +424,39 @@ export const DownloadsPage: React.FC<DownloadsPageProps> = ({
               {t.downloads.notifyDesc}
             </p>
 
-            <form onSubmit={handleSubscribe} className="pt-2 max-w-md mx-auto">
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              {onToggleNotifications && (
+                <button
+                  type="button"
+                  onClick={onToggleNotifications}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold border transition-all ${
+                    notificationStatus === 'granted'
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300'
+                      : 'bg-white dark:bg-neutral-900 border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:border-amber-500/50 shadow-xs'
+                  }`}
+                >
+                  {notificationStatus === 'granted' ? (
+                    <>
+                      <BellRing className="w-4 h-4 text-emerald-600 dark:text-emerald-400 animate-pulse" />
+                      <span>{language === 'ar' ? 'إشعارات المتصفح مفعلة ✓ (انقر للاختبار)' : 'Web Notifications Active ✓ (Click to test)'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Bell className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <span>{language === 'ar' ? 'تفعيل إشعارات المتصفح الفورية' : 'Enable Web Push Notifications'}</span>
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+
+            <div className="pt-2 text-[11px] text-neutral-400 dark:text-neutral-500 flex items-center justify-center gap-2">
+              <span className="w-8 h-px bg-neutral-300 dark:bg-neutral-700" />
+              <span>{language === 'ar' ? 'أو الاشتراك عبر البريد الإلكتروني' : 'Or subscribe via email'}</span>
+              <span className="w-8 h-px bg-neutral-300 dark:bg-neutral-700" />
+            </div>
+
+            <form onSubmit={handleSubscribe} className="pt-1 max-w-md mx-auto">
               <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="email"

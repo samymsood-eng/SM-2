@@ -1,0 +1,109 @@
+{
+  "entities": {
+    "Product": {
+      "fields": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "nameEn": { "type": "string" },
+        "tagline": { "type": "string" },
+        "taglineEn": { "type": "string" },
+        "description": { "type": "string" },
+        "descriptionEn": { "type": "string" },
+        "category": { "type": "string" },
+        "version": { "type": "string" },
+        "price": { "type": "string" },
+        "license": { "type": "string" },
+        "rating": { "type": "number" },
+        "downloadsCount": { "type": "number" },
+        "images": { "type": "array" },
+        "features": { "type": "array" },
+        "featuresEn": { "type": "array" },
+        "systemRequirements": { "type": "array" },
+        "downloadUrl": { "type": "string" },
+        "downloadProvider": { "type": "string" },
+        "archivePassword": { "type": "string" }
+      }
+    },
+    "Download": {
+      "fields": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "titleEn": { "type": "string" },
+        "version": { "type": "string" },
+        "releaseDate": { "type": "string" },
+        "platform": { "type": "string" },
+        "architecture": { "type": "string" },
+        "fileName": { "type": "string" },
+        "fileSize": { "type": "string" },
+        "directUrl": { "type": "string" },
+        "downloadProvider": { "type": "string" },
+        "archivePassword": { "type": "string" },
+        "sha256": { "type": "string" },
+        "isLatest": { "type": "boolean" },
+        "minOsVersion": { "type": "string" },
+        "releaseNotes": { "type": "string" },
+        "releaseNotesEn": { "type": "string" }
+      }
+    },
+    "Changelog": {
+      "fields": {
+        "id": { "type": "string" },
+        "version": { "type": "string" },
+        "date": { "type": "string" },
+        "type": { "type": "string" },
+        "title": { "type": "string" },
+        "titleEn": { "type": "string" },
+        "changes": { "type": "array" },
+        "changesEn": { "type": "array" }
+      }
+    },
+    "Doc": {
+      "fields": {
+        "id": { "type": "string" },
+        "slug": { "type": "string" },
+        "title": { "type": "string" },
+        "titleEn": { "type": "string" },
+        "category": { "type": "string" },
+        "categoryEn": { "type": "string" },
+        "description": { "type": "string" },
+        "descriptionEn": { "type": "string" },
+        "order": { "type": "number" },
+        "content": { "type": "string" },
+        "contentEn": { "type": "string" },
+        "lastUpdated": { "type": "string" }
+      }
+    },
+    "AdminUser": {
+      "fields": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string" },
+        "lastLogin": { "type": "string" },
+        "active": { "type": "boolean" }
+      }
+    },
+    "Subscriber": {
+      "fields": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "subscribedAt": { "type": "string" },
+        "categories": { "type": "array" },
+        "status": { "type": "string" }
+      }
+    },
+    "SupportTicket": {
+      "fields": {
+        "id": { "type": "string" },
+        "ticketNumber": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "subject": { "type": "string" },
+        "message": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "replies": { "type": "array" }
+      }
+    }
+  }
+}

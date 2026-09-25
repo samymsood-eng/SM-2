@@ -12,6 +12,7 @@ import {
   ShoppingBag,
   LifeBuoy,
   Lock,
+  KeyRound,
   Sun,
   Moon,
   Globe,
@@ -26,7 +27,10 @@ import {
   CheckCircle2,
   Sparkles,
   PhoneCall,
+  Bell,
+  BellRing,
 } from 'lucide-react';
+import { NotificationStatus } from '../lib/webNotifications';
 
 interface HeaderProps {
   currentPage: Page;
@@ -38,6 +42,8 @@ interface HeaderProps {
   currentUser: AdminUser | null;
   onLogout: () => void;
   onOpenGithubModal: () => void;
+  notificationStatus?: NotificationStatus;
+  onToggleNotifications?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -50,6 +56,8 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onLogout,
   onOpenGithubModal,
+  notificationStatus,
+  onToggleNotifications,
 }) => {
   const [activeDropdown, setActiveDropdown] = useState<'software' | 'developer' | null>(null);
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
@@ -295,9 +303,67 @@ export const Header: React.FC<HeaderProps> = ({
                       </p>
                     </div>
                   </button>
+
+                  {/* Hardware License Activation Link in Dropdown */}
+                  <button
+                    id="dropdown-item-licenses"
+                    onClick={() => {
+                      setCurrentPage('licenses');
+                      setActiveDropdown(null);
+                    }}
+                    className={`group w-full flex items-start gap-3 p-2.5 rounded-lg text-start transition-all duration-150 mt-1 ${
+                      currentPage === 'licenses'
+                        ? 'bg-neutral-100 dark:bg-neutral-800/80 font-semibold'
+                        : 'hover:bg-neutral-100/70 dark:hover:bg-neutral-800/70 hover:translate-x-0.5 rtl:hover:-translate-x-0.5'
+                    }`}
+                  >
+                    <div className="p-2 rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5 transition-transform duration-200 group-hover:scale-110 group-hover:bg-amber-500/20">
+                      <KeyRound className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-neutral-900 dark:text-neutral-100 text-sm group-hover:text-amber-700 dark:group-hover:text-amber-400 transition-colors">
+                          {language === 'ar' ? 'تفعيل التراخيص وبصمة الجهاز' : 'Hardware License Activation'}
+                        </span>
+                        <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-800 dark:text-amber-300">
+                          HWID
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-neutral-500 dark:text-neutral-400 mt-0.5 leading-relaxed">
+                        {language === 'ar'
+                          ? 'استخراج سيريالات الأجهزة المربوطة بالمعالج واللوحة الأم'
+                          : 'Cryptographic hardware-bound key licensing portal'}
+                      </p>
+                    </div>
+                  </button>
                 </div>
               )}
             </div>
+
+            {/* Direct Top-Level Navbar Link: License Activation Portal */}
+            <button
+              id="nav-link-licenses-top"
+              onClick={() => {
+                setCurrentPage('licenses');
+                setActiveDropdown(null);
+              }}
+              className={`relative group flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ease-out hover:-translate-y-0.5 active:translate-y-0 ${
+                currentPage === 'licenses'
+                  ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 shadow-sm font-semibold'
+                  : 'text-neutral-700 dark:text-neutral-300 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-neutral-100/80 dark:hover:bg-neutral-800/80'
+              }`}
+            >
+              <KeyRound className={`w-3.5 h-3.5 transition-transform duration-200 group-hover:scale-110 ${currentPage === 'licenses' ? '' : 'text-amber-600 dark:text-amber-400'}`} />
+              <span className="relative">
+                {language === 'ar' ? 'تفعيل التراخيص' : 'Licenses'}
+                {currentPage !== 'licenses' && (
+                  <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-amber-500 scale-x-0 group-hover:scale-x-100 transition-transform duration-200 ease-out origin-center rounded-full opacity-80" />
+                )}
+              </span>
+              <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-amber-500/20 text-amber-800 dark:text-amber-300 font-bold">
+                HWID
+              </span>
+            </button>
 
             {/* Dropdown 2: Developer & Support Services */}
             <div className="relative">
@@ -481,19 +547,54 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            {/* Dark/Light Mode Toggle (Desktop) */}
+            {/* Dark/Light Mode Universal Toggle */}
             <button
+              type="button"
               id="theme-toggle-btn"
               onClick={toggleTheme}
+              title={theme === 'dark' ? t.nav.themeLight : t.nav.themeDark}
               aria-label={theme === 'dark' ? t.nav.themeLight : t.nav.themeDark}
-              className="hidden sm:inline-flex p-1.5 rounded-md border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 shadow-2xs hover:shadow-xs"
+              className="inline-flex items-center justify-center p-2 sm:p-1.5 min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 rounded-lg sm:rounded-md border border-neutral-300 dark:border-neutral-700 bg-white/80 dark:bg-neutral-800/80 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 shadow-2xs hover:shadow-xs cursor-pointer"
             >
               {theme === 'dark' ? (
-                <Sun className="w-3.5 h-3.5 text-amber-400 transition-transform duration-300 hover:rotate-90 hover:scale-110" />
+                <Sun className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-amber-400 transition-transform duration-300 hover:rotate-90 hover:scale-110" />
               ) : (
-                <Moon className="w-3.5 h-3.5 text-neutral-700 dark:text-neutral-300 transition-transform duration-300 hover:-rotate-45 hover:scale-110" />
+                <Moon className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-neutral-700 dark:text-neutral-300 transition-transform duration-300 hover:-rotate-45 hover:scale-110" />
               )}
             </button>
+
+            {/* Browser Web Notifications Toggle */}
+            {onToggleNotifications && (
+              <button
+                type="button"
+                id="web-notifications-btn"
+                onClick={onToggleNotifications}
+                title={
+                  notificationStatus === 'granted'
+                    ? language === 'ar'
+                      ? 'إشعارات المتصفح مفعلة (انقر للاختبار والتأكيد)'
+                      : 'Web notifications active (Click to test)'
+                    : language === 'ar'
+                    ? 'تفعيل إشعارات المتصفح للإصدارات الجديدة'
+                    : 'Enable browser notifications for new releases'
+                }
+                aria-label="Toggle Web Notifications"
+                className={`relative inline-flex items-center justify-center p-2 sm:p-1.5 min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 rounded-lg sm:rounded-md border transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 shadow-2xs hover:shadow-xs cursor-pointer ${
+                  notificationStatus === 'granted'
+                    ? 'bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/40 shadow-amber-500/10'
+                    : 'border-neutral-300 dark:border-neutral-700 bg-white/80 dark:bg-neutral-800/80 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700'
+                }`}
+              >
+                {notificationStatus === 'granted' ? (
+                  <BellRing className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-amber-600 dark:text-amber-400 animate-pulse" />
+                ) : (
+                  <Bell className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+                )}
+                {notificationStatus === 'granted' && (
+                  <span className="absolute -top-0.5 -end-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-neutral-900" />
+                )}
+              </button>
+            )}
 
             {/* Supervisor Session Status Badge (If logged in) */}
             {currentUser && (
@@ -518,29 +619,11 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
 
-            {/* Mobile Quick Theme Toggle (accessible directly without opening drawer) */}
-            <button
-              type="button"
-              id="mobile-quick-theme-toggle"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleTheme();
-              }}
-              aria-label={theme === 'dark' ? t.nav.themeLight : t.nav.themeDark}
-              className="lg:hidden p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-100/80 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 active:scale-95 transition-all"
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-4 h-4 text-amber-400 shrink-0" />
-              ) : (
-                <Moon className="w-4 h-4 text-neutral-700 dark:text-neutral-300 shrink-0" />
-              )}
-            </button>
-
             {/* Mobile Hamburger Toggle Button */}
             <button
               id="mobile-hamburger-btn"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="lg:hidden p-1.5 sm:p-2 rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+              className="lg:hidden p-2 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg border border-neutral-300 dark:border-neutral-700 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
               aria-label="Toggle navigation"
             >
               {mobileMenuOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <Menu className="w-4 h-4 sm:w-5 sm:h-5" />}
@@ -655,6 +738,33 @@ export const Header: React.FC<HeaderProps> = ({
                     v2.4.0
                   </span>
                   {currentPage === 'downloads' && <span className="w-2 h-2 rounded-full bg-white shrink-0" />}
+                </div>
+              </button>
+
+              {/* Direct License Activation Link - Prominently Visible on Mobile */}
+              <button
+                id="mobile-nav-licenses-direct"
+                onClick={() => {
+                  setCurrentPage('licenses');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full min-h-[48px] flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${
+                  currentPage === 'licenses'
+                    ? 'bg-amber-600 text-white font-bold shadow-sm'
+                    : 'text-neutral-800 dark:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800/80'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <KeyRound className={`w-4 h-4 shrink-0 ${currentPage === 'licenses' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`} />
+                  <span className="text-sm font-semibold">{language === 'ar' ? 'تفعيل التراخيص وبصمة الأجهزة' : 'License & HWID Activation'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold ${
+                    currentPage === 'licenses' ? 'bg-white/20 text-white' : 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
+                  }`}>
+                    HWID
+                  </span>
+                  {currentPage === 'licenses' && <span className="w-2 h-2 rounded-full bg-white shrink-0" />}
                 </div>
               </button>
 

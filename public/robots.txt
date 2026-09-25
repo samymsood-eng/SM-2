@@ -1,0 +1,6 @@
+# https://www.robotstxt.org/robotstxt.html
+User-agent: *
+Allow: /
+
+# Direct link to XML Sitemap for Google, Bing, Yandex, DuckDuckGo
+Sitemap: https://samymsood-eng.github.io/SM-2/sitemap.xml

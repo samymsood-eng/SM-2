@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // SM+2 Software Platform Core Rules
+    match /products/{productId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /downloads/{downloadId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /changelogs/{changelogId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /docs/{docId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /adminUsers/{userId} {
+      allow read: if true;
+      allow write: if true;
+    }
+    match /subscribers/{subscriberId} {
+      allow read, write: if true;
+    }
+    match /supportTickets/{ticketId} {
+      allow read, write: if true;
+    }
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+    match /licenses/{licenseId} {
+      allow read, write: if true;
+    }
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

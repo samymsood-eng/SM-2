@@ -29,6 +29,35 @@ import {
   initialSupportTickets,
   initialGitHubSettings,
 } from './data/initialData';
+import {
+  subscribeProducts,
+  subscribeDownloads,
+  subscribeChangelogs,
+  subscribeDocs,
+  subscribeAdminUsers,
+  subscribeSubscribers,
+  subscribeSupportTickets,
+  subscribeGitHubSettings,
+  saveProductToCloud,
+  deleteProductFromCloud,
+  saveDownloadToCloud,
+  deleteDownloadFromCloud,
+  saveChangelogToCloud,
+  saveDocToCloud,
+  deleteDocFromCloud,
+  saveAdminUserToCloud,
+  saveSubscriberToCloud,
+  saveTicketToCloud,
+  saveGitHubSettingsToCloud,
+} from './lib/firestoreService';
+import {
+  NotificationStatus,
+  getNotificationStatus,
+  requestNotificationPermission,
+  isWebNotificationSupported,
+  showWebNotification,
+  notifyNewRelease,
+} from './lib/webNotifications';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { HomePage } from './components/pages/HomePage';
@@ -48,11 +77,36 @@ export default function App() {
   });
 
   const [language, setLanguage] = useState<Language>(() => {
-    return (localStorage.getItem('sm2_lang') as Language) || 'ar';
+    const saved = localStorage.getItem('sm2_lang') as Language;
+    if (saved === 'ar' || saved === 'en') return saved;
+    // Auto-detect browser language on user's first visit
+    if (typeof navigator !== 'undefined') {
+      const browserLang = (
+        navigator.language ||
+        (navigator.languages && navigator.languages[0]) ||
+        ''
+      ).toLowerCase();
+      if (browserLang.startsWith('en')) {
+        return 'en';
+      }
+      if (browserLang.startsWith('ar')) {
+        return 'ar';
+      }
+    }
+    return 'ar';
   });
 
   const [theme, setTheme] = useState<Theme>(() => {
-    return (localStorage.getItem('sm2_theme') as Theme) || 'light';
+    const saved = localStorage.getItem('sm2_theme') as Theme;
+    if (saved === 'dark' || saved === 'light') return saved;
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+    return 'light';
+  });
+
+  const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>(() => {
+    return getNotificationStatus();
   });
 
   const [currentUser, setCurrentUser] = useState<AdminUser | null>(() => {
@@ -107,6 +161,29 @@ export default function App() {
 
   const [isGithubModalOpen, setIsGithubModalOpen] = useState(false);
 
+  // --- REAL-TIME FIRESTORE SUBSCRIPTIONS ---
+  useEffect(() => {
+    const unsubProducts = subscribeProducts((items) => setProducts(items));
+    const unsubDownloads = subscribeDownloads((items) => setDownloads(items));
+    const unsubChangelogs = subscribeChangelogs((items) => setChangelogs(items));
+    const unsubDocs = subscribeDocs((items) => setDocs(items));
+    const unsubAdminUsers = subscribeAdminUsers((items) => setAdminUsers(items));
+    const unsubSubscribers = subscribeSubscribers((items) => setSubscribers(items));
+    const unsubTickets = subscribeSupportTickets((items) => setSupportTickets(items));
+    const unsubGithub = subscribeGitHubSettings((settings) => setGithubSettings(settings));
+
+    return () => {
+      unsubProducts();
+      unsubDownloads();
+      unsubChangelogs();
+      unsubDocs();
+      unsubAdminUsers();
+      unsubSubscribers();
+      unsubTickets();
+      unsubGithub();
+    };
+  }, []);
+
   // --- SYNC EFFECTS ---
   useEffect(() => {
     localStorage.setItem('sm2_current_page', currentPage);
@@ -121,14 +198,25 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('sm2_theme', theme);
+    const root = document.documentElement;
+    const body = document.body;
+    const metaCs = document.getElementById('meta-color-scheme');
+    const metaTc = document.getElementById('meta-theme-color');
+
     if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-      document.documentElement.setAttribute('data-theme', 'dark');
-      document.body.classList.add('dark');
+      root.classList.add('dark');
+      root.setAttribute('data-theme', 'dark');
+      root.style.colorScheme = 'dark';
+      body.classList.add('dark');
+      if (metaCs) metaCs.setAttribute('content', 'dark');
+      if (metaTc) metaTc.setAttribute('content', '#0a0a0a');
     } else {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.setAttribute('data-theme', 'light');
-      document.body.classList.remove('dark');
+      root.classList.remove('dark');
+      root.setAttribute('data-theme', 'light');
+      root.style.colorScheme = 'light';
+      body.classList.remove('dark');
+      if (metaCs) metaCs.setAttribute('content', 'light');
+      if (metaTc) metaTc.setAttribute('content', '#fafafa');
     }
   }, [theme]);
 
@@ -194,6 +282,7 @@ export default function App() {
       categories: ['all', 'releases'],
       status: 'active',
     };
+    saveSubscriberToCloud(newSub);
     setSubscribers((prev) => [newSub, ...prev]);
     return true;
   };
@@ -216,12 +305,98 @@ export default function App() {
         },
       ],
     };
+    saveTicketToCloud(newTicket);
     setSupportTickets((prev) => [newTicket, ...prev]);
     return newTicket;
   };
 
   const handleAddChangelog = (entry: ChangelogEntry) => {
+    saveChangelogToCloud(entry);
     setChangelogs((prev) => [entry, ...prev]);
+  };
+
+  const handleUpdateProducts = (newProducts: Product[]) => {
+    const currentIds = new Set(newProducts.map((p) => p.id));
+    products.forEach((p) => {
+      if (!currentIds.has(p.id)) {
+        deleteProductFromCloud(p.id);
+      }
+    });
+    newProducts.forEach((p) => {
+      saveProductToCloud(p);
+    });
+    setProducts(newProducts);
+  };
+
+  const handleToggleNotifications = async () => {
+    if (!isWebNotificationSupported()) {
+      alert(language === 'ar' ? 'متصفحك الحالي لا يدعم إشعارات الويب' : 'Web notifications are not supported in this browser');
+      return;
+    }
+    const result = await requestNotificationPermission();
+    setNotificationStatus(result);
+    if (result === 'granted') {
+      showWebNotification(
+        language === 'ar' ? '🔔 تم تفعيل إشعارات SM+2 بنجاح' : '🔔 SM+2 Web Notifications Activated',
+        {
+          body: language === 'ar'
+            ? 'ستتلقى الآن تنبيهات مباشرة عند توفر إصدارات برمجية أو تحديثات جديدة للمنصة.'
+            : 'You will now receive instant desktop alerts on any new software releases and updates.',
+        }
+      );
+    }
+  };
+
+  const handleUpdateDownloads = (newDownloads: DownloadFile[]) => {
+    const currentIds = new Set(newDownloads.map((d) => d.id));
+    downloads.forEach((d) => {
+      if (!currentIds.has(d.id)) {
+        deleteDownloadFromCloud(d.id);
+      }
+    });
+    newDownloads.forEach((d) => {
+      saveDownloadToCloud(d);
+    });
+
+    // If new release was added, trigger real-time browser notification
+    if (newDownloads.length > downloads.length && notificationStatus === 'granted') {
+      const newest = newDownloads[0];
+      if (newest) {
+        notifyNewRelease({
+          title: newest.title,
+          version: newest.version,
+          fileName: newest.fileName,
+          language,
+        });
+      }
+    }
+
+    setDownloads(newDownloads);
+  };
+
+  const handleUpdateDocs = (newDocs: DocSection[]) => {
+    const currentIds = new Set(newDocs.map((d) => d.id));
+    docs.forEach((d) => {
+      if (!currentIds.has(d.id)) {
+        deleteDocFromCloud(d.id);
+      }
+    });
+    newDocs.forEach((d) => {
+      saveDocToCloud(d);
+    });
+    setDocs(newDocs);
+  };
+
+  const handleUpdateUsers = (newUsers: AdminUser[]) => {
+    newUsers.forEach((u) => {
+      saveAdminUserToCloud(u);
+    });
+    setAdminUsers(newUsers);
+  };
+
+  const handleUpdateGithubSettings = (newSettings: GitHubSettings) => {
+    saveGitHubSettingsToCloud(newSettings);
+    setGithubSettings(newSettings);
   };
 
   const handleSendNotification = (subject: string, version: string, messageBody: string) => {
@@ -235,6 +410,13 @@ export default function App() {
       messageBody,
     };
     setNotificationLogs((prev) => [newLog, ...prev]);
+
+    // Also broadcast web notification to current browser session
+    showWebNotification(`🔔 ${subject} (${version})`, {
+      body: messageBody,
+      tag: `broadcast-${version}`,
+      onClickUrl: '#downloads',
+    });
   };
 
   const handleAddReview = (
@@ -251,47 +433,69 @@ export default function App() {
       verifiedBuyer: true,
     };
 
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id === productId) {
-          const existing = p.reviews || [];
-          const updated = [newReview, ...existing];
-          const avg = Math.round((updated.reduce((sum, r) => sum + r.rating, 0) / updated.length) * 10) / 10;
-          return {
-            ...p,
-            reviews: updated,
-            rating: avg,
-          };
-        }
-        return p;
-      })
-    );
+    const updated = products.map((p) => {
+      if (p.id === productId) {
+        const existing = p.reviews || [];
+        const reviews = [newReview, ...existing];
+        const avg = Math.round((reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length) * 10) / 10;
+        const updatedProd = {
+          ...p,
+          reviews,
+          rating: avg,
+        };
+        saveProductToCloud(updatedProd);
+        return updatedProd;
+      }
+      return p;
+    });
+    setProducts(updated);
   };
 
   return (
-    <div className={`min-h-screen flex flex-col bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100 transition-colors duration-200 ${theme === 'dark' ? 'dark' : ''}`}>
+    <div
+      id="sm2-app-root"
+      className={`min-h-screen flex flex-col relative overflow-x-hidden bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100 transition-colors duration-200 ${theme === 'dark' ? 'dark' : ''}`}
+    >
+      {/* Dynamic Ambient Background Glows - Provides Rich Modern Visual Depth on Mobile and Desktop */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 select-none" aria-hidden="true">
+        {/* Amber / Gold Engineering Glow (Top Right) */}
+        <div className="absolute -top-24 sm:-top-32 -right-20 sm:-right-32 w-72 sm:w-96 md:w-[34rem] h-72 sm:h-96 md:h-[34rem] rounded-full bg-gradient-to-br from-amber-500/15 to-amber-600/5 dark:from-amber-500/20 dark:to-transparent blur-3xl opacity-80 dark:opacity-70 animate-pulse" style={{ animationDuration: '8s' }} />
+        {/* Emerald / Cyan High-Tech Glow (Top Left) */}
+        <div className="absolute top-28 sm:top-20 -left-20 sm:-left-32 w-64 sm:w-80 md:w-[30rem] h-64 sm:h-80 md:h-[30rem] rounded-full bg-gradient-to-tr from-emerald-500/15 to-teal-500/5 dark:from-emerald-500/20 dark:to-transparent blur-3xl opacity-75 dark:opacity-60" />
+        {/* Blue / Violet Enterprise Glow (Mid Center) */}
+        <div className="absolute top-1/2 right-4 sm:right-1/4 w-60 sm:w-80 md:w-[28rem] h-60 sm:h-80 md:h-[28rem] rounded-full bg-gradient-to-br from-blue-500/10 to-indigo-500/5 dark:from-blue-500/15 dark:to-transparent blur-3xl opacity-60 dark:opacity-50" />
+        {/* Bottom Ambient Glow */}
+        <div className="absolute -bottom-28 sm:-bottom-40 left-1/4 w-80 sm:w-96 md:w-[32rem] h-80 sm:h-96 md:h-[32rem] rounded-full bg-gradient-to-t from-amber-500/10 to-emerald-500/5 dark:from-amber-500/15 dark:to-transparent blur-3xl opacity-70" />
+      </div>
+
       {/* Top Header */}
-      <Header
-        currentPage={currentPage}
-        setCurrentPage={setCurrentPage}
-        language={language}
-        setLanguage={setLanguage}
-        theme={theme}
-        toggleTheme={toggleTheme}
-        currentUser={currentUser}
-        onLogout={handleLogout}
-        onOpenGithubModal={() => setIsGithubModalOpen(true)}
-      />
+      <div className="relative z-20">
+        <Header
+          currentPage={currentPage}
+          setCurrentPage={setCurrentPage}
+          language={language}
+          setLanguage={setLanguage}
+          theme={theme}
+          toggleTheme={toggleTheme}
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onOpenGithubModal={() => setIsGithubModalOpen(true)}
+          notificationStatus={notificationStatus}
+          onToggleNotifications={handleToggleNotifications}
+        />
+      </div>
 
       {/* Main Content Router */}
-      <main className="flex-1">
+      <main className="relative z-10 flex-1">
         {currentPage === 'home' && (
           <HomePage
             downloads={downloads}
             changelogs={changelogs}
             products={products}
             subscribers={subscribers}
+            githubSettings={githubSettings}
             language={language}
+            theme={theme}
             setCurrentPage={setCurrentPage}
             onSubscribeEmail={handleSubscribeEmail}
             onOpenGithubModal={() => setIsGithubModalOpen(true)}
@@ -316,6 +520,8 @@ export default function App() {
             changelogs={changelogs}
             language={language}
             onSubscribeEmail={handleSubscribeEmail}
+            notificationStatus={notificationStatus}
+            onToggleNotifications={handleToggleNotifications}
           />
         )}
 
@@ -335,20 +541,20 @@ export default function App() {
             onLogin={handleLogin}
             onLogout={handleLogout}
             adminUsers={adminUsers}
-            onUpdateUsers={setAdminUsers}
+            onUpdateUsers={handleUpdateUsers}
             products={products}
-            onUpdateProducts={setProducts}
+            onUpdateProducts={handleUpdateProducts}
             docs={docs}
-            onUpdateDocs={setDocs}
+            onUpdateDocs={handleUpdateDocs}
             downloads={downloads}
-            onUpdateDownloads={setDownloads}
+            onUpdateDownloads={handleUpdateDownloads}
             changelogs={changelogs}
             onAddChangelog={handleAddChangelog}
             subscribers={subscribers}
             notificationLogs={notificationLogs}
             onSendNotification={handleSendNotification}
             githubSettings={githubSettings}
-            onUpdateGithubSettings={setGithubSettings}
+            onUpdateGithubSettings={handleUpdateGithubSettings}
             language={language}
           />
         )}

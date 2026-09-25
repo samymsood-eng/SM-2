@@ -3,35 +3,83 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
         http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
-  <!-- Homepage: Latest File Uploads & Updates -->
+  <!-- Homepage: Official SM+2 Software Platform -->
   <url>
-    <loc>https://sm2.dev/</loc>
-    <lastmod>2026-09-09</lastmod>
+    <loc>https://samymsood-eng.github.io/SM-2/</loc>
+    <lastmod>2026-09-18</lastmod>
     <changefreq>daily</changefreq>
-    <priority>1.0</priority>
+    <priority>1.00</priority>
   </url>
 
   <!-- Sales Showcase: Products, Specs, Reviews & Direct Downloads -->
   <url>
-    <loc>https://sm2.dev/sales</loc>
-    <lastmod>2026-09-09</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
+    <loc>https://samymsood-eng.github.io/SM-2/#sales</loc>
+    <lastmod>2026-09-18</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
   </url>
 
   <!-- Direct File Downloads: Official Binaries, Releases, Checksums -->
   <url>
-    <loc>https://sm2.dev/downloads</loc>
-    <lastmod>2026-09-09</lastmod>
+    <loc>https://samymsood-eng.github.io/SM-2/#downloads</loc>
+    <lastmod>2026-09-18</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.95</priority>
   </url>
 
   <!-- Support and Developer: Tickets, System Status, Community -->
   <url>
-    <loc>https://sm2.dev/developer</loc>
-    <lastmod>2026-09-09</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
+    <loc>https://samymsood-eng.github.io/SM-2/#developer</loc>
+    <lastmod>2026-09-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- Dynamic Product: SM+2 Core Engine -->
+  <url>
+    <loc>https://samymsood-eng.github.io/SM-2/#sales-prod-sm2-core</loc>
+    <lastmod>2026-09-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- Dynamic Product: SM+2 Cloud Sync -->
+  <url>
+    <loc>https://samymsood-eng.github.io/SM-2/#sales-prod-sm2-sync</loc>
+    <lastmod>2026-09-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- Dynamic Product: SM+2 DevKit Pro -->
+  <url>
+    <loc>https://samymsood-eng.github.io/SM-2/#sales-prod-sm2-devkit</loc>
+    <lastmod>2026-09-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- Dynamic Download: Windows MSI Installer -->
+  <url>
+    <loc>https://samymsood-eng.github.io/SM-2/#downloads-dl-win-x64</loc>
+    <lastmod>2026-09-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- Dynamic Download: Linux Debian Package -->
+  <url>
+    <loc>https://samymsood-eng.github.io/SM-2/#downloads-dl-linux-deb</loc>
+    <lastmod>2026-09-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+
+  <!-- Dynamic Download: macOS Universal DMG -->
+  <url>
+    <loc>https://samymsood-eng.github.io/SM-2/#downloads-dl-macos-dmg</loc>
+    <lastmod>2026-09-18</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
   </url>
 </urlset>

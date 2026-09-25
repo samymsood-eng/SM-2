@@ -158,11 +158,11 @@ export const SalesPage: React.FC<SalesPageProps> = ({
             <span>{t.sales.badge}</span>
           </div>
 
-          <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl font-black text-neutral-900 dark:text-neutral-100 tracking-tight leading-[1.15]">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold font-sans text-neutral-900 dark:text-neutral-100 tracking-normal leading-snug">
             {t.sales.heroTitle}
           </h1>
 
-          <p className="text-base sm:text-lg text-neutral-600 dark:text-neutral-300 leading-relaxed font-normal">
+          <p className="text-sm sm:text-base text-neutral-600 dark:text-neutral-300 leading-relaxed font-normal">
             {t.sales.heroDesc}
           </p>
 

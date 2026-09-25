@@ -4,31 +4,97 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="format-detection" content="telephone=no, date=no, address=no, email=no" />
-    <meta name="color-scheme" content="light dark" />
-    <title>SM+2 - المنصة الرسمية للبرمجيات والمطورين</title>
-    <meta name="description" content="المنصة الرسمية لبرمجيات SM+2 - تنزيل مباشر، متجر المنتجات والمبيعات، ودعم المطورين مع لوحة تحكم إدارية وتكامل GitHub." />
-    <meta property="og:title" content="SM+2 - المنصة الرسمية للبرمجيات والمطورين" />
-    <meta property="og:description" content="المنصة الرسمية لبرمجيات SM+2 - تنزيل مباشر، متجر المنتجات والمبيعات، ودعم المطورين مع لوحة تحكم إدارية وتكامل GitHub." />
+    <meta name="color-scheme" content="light" id="meta-color-scheme" />
+    <meta name="theme-color" content="#fafafa" id="meta-theme-color" />
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('sm2_theme');
+          var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = saved === 'dark' || (!saved && prefersDark) ? 'dark' : 'light';
+          var root = document.documentElement;
+          if (theme === 'dark') {
+            root.classList.add('dark');
+            root.setAttribute('data-theme', 'dark');
+            root.style.colorScheme = 'dark';
+          } else {
+            root.classList.remove('dark');
+            root.setAttribute('data-theme', 'light');
+            root.style.colorScheme = 'light';
+          }
+          var metaCs = document.getElementById('meta-color-scheme');
+          if (metaCs) metaCs.setAttribute('content', theme);
+          var metaTc = document.getElementById('meta-theme-color');
+          if (metaTc) metaTc.setAttribute('content', theme === 'dark' ? '#0a0a0a' : '#fafafa');
+        } catch (e) {}
+      })();
+    </script>
+    <title>منظومة SM+2 للحلول والأنظمة البرمجية المتكاملة | الموقع الرسمي للبرمجيات والتنزيل</title>
+    <meta name="description" content="الموقع الرسمي لمنظومة SM+2 للحلول والأنظمة البرمجية المتكاملة - تنزيل مباشر، متجر المنتجات الرقمية، التوثيق الفني، ودعم المطورين المعتمد." />
+    <meta name="keywords" content="SM+2, منظومة SM+2, SM-2, برمجيات SM+2, تنزيل برامج, samy msood, samymsood-eng, SM2 System, أنظمة برمجية متكاملة" />
+    <meta name="author" content="Samy Msood - SM+2" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <link rel="canonical" href="https://samymsood-eng.github.io/SM-2/" />
+
+    <!-- Open Graph / Facebook / LinkedIn -->
     <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://samymsood-eng.github.io/SM-2/" />
+    <meta property="og:site_name" content="منظومة SM+2 للحلول والأنظمة البرمجية المتكاملة" />
+    <meta property="og:locale" content="ar_AR" />
+    <meta property="og:title" content="منظومة SM+2 للحلول والأنظمة البرمجية المتكاملة | الموقع الرسمي" />
+    <meta property="og:description" content="الموقع الرسمي لمنظومة SM+2 - تنزيل مباشر للبرمجيات والأنظمة، توثيق فني، ومتجر رقمي متكامل." />
+    <meta property="og:image" content="https://samymsood-eng.github.io/SM-2/logo.png" />
+
+    <!-- Twitter Cards -->
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://samymsood-eng.github.io/SM-2/" />
+    <meta name="twitter:title" content="منظومة SM+2 للحلول والأنظمة البرمجية المتكاملة" />
+    <meta name="twitter:description" content="الموقع الرسمي لمنظومة SM+2 - تنزيل مباشر للبرمجيات والأنظمة، توثيق فني، ومتجر رقمي متكامل." />
+    <meta name="twitter:image" content="https://samymsood-eng.github.io/SM-2/logo.png" />
+
+    <!-- Structured Data: JSON-LD for Google Search Rich Results -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://samymsood-eng.github.io/SM-2/#website",
+          "url": "https://samymsood-eng.github.io/SM-2/",
+          "name": "منظومة SM+2 للحلول والأنظمة البرمجية المتكاملة",
+          "alternateName": ["SM+2", "SM-2", "SM2 Software Platform"],
+          "description": "المنصة الرسمية لبرمجيات SM+2 والحلول البرمجية المتكاملة والتنزيل المباشر",
+          "inLanguage": "ar"
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://samymsood-eng.github.io/SM-2/#organization",
+          "name": "SM+2 Software Systems",
+          "url": "https://samymsood-eng.github.io/SM-2/",
+          "logo": "https://samymsood-eng.github.io/SM-2/logo.png",
+          "sameAs": [
+            "https://github.com/samymsood-eng/SM-2"
+          ]
+        },
+        {
+          "@type": "SoftwareApplication",
+          "name": "منظومة SM+2 للأنظمة البرمجية",
+          "operatingSystem": "Windows, Linux, macOS, Android",
+          "applicationCategory": "DeveloperApplication, BusinessApplication",
+          "url": "https://samymsood-eng.github.io/SM-2/",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          }
+        }
+      ]
+    }
+    </script>
     <link rel="icon" type="image/png" href="./logo.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&family=Cinzel:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <script>
-      (function() {
-        try {
-          var t = localStorage.getItem('sm2_theme');
-          if (t === 'dark') {
-            document.documentElement.classList.add('dark');
-            document.documentElement.setAttribute('data-theme', 'dark');
-          } else {
-            document.documentElement.classList.remove('dark');
-            document.documentElement.setAttribute('data-theme', 'light');
-          }
-        } catch (e) {}
-      })();
-    </script>
   </head>
   <body class="bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100 antialiased selection:bg-amber-500/20 selection:text-amber-900 dark:selection:text-amber-200">
     <div id="root"></div>

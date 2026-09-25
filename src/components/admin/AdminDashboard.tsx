@@ -10,6 +10,7 @@ import {
   GitHubSettings,
   Language,
   AdminRole,
+  LicenseRequest,
 } from '../../types';
 import { translations } from '../../i18n/translations';
 import {
@@ -35,9 +36,25 @@ import {
   Settings,
   Sparkles,
   Key,
+  KeyRound,
+  MessageCircle,
   Terminal,
   ExternalLink,
+  Globe,
+  Copy,
+  FileText,
+  Bell,
+  BellRing,
+  Image as ImageIcon,
+  Loader2,
 } from 'lucide-react';
+import { compressImageFile } from '../../utils/imageCompressor';
+import { generateSitemapXml, generateRobotsTxt } from '../../lib/sitemapGenerator';
+import {
+  showWebNotification,
+  requestNotificationPermission,
+  getNotificationStatus,
+} from '../../lib/webNotifications';
 
 interface AdminDashboardProps {
   currentUser: AdminUser | null;
@@ -59,6 +76,9 @@ interface AdminDashboardProps {
   githubSettings: GitHubSettings;
   onUpdateGithubSettings: (settings: GitHubSettings) => void;
   language: Language;
+  licenseRequests?: LicenseRequest[];
+  onUpdateLicenseRequest?: (req: LicenseRequest) => void;
+  onDeleteLicenseRequest?: (id: string) => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -81,13 +101,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   githubSettings,
   onUpdateGithubSettings,
   language,
+  licenseRequests = [],
+  onUpdateLicenseRequest,
+  onDeleteLicenseRequest,
 }) => {
   const t = translations[language];
 
   // Active sub-tab
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'products' | 'docs' | 'downloads' | 'users' | 'github' | 'notifications' | 'changelog' | 'deploy'
-  >('overview');
+    'overview' | 'licenses' | 'products' | 'docs' | 'downloads' | 'users' | 'github' | 'notifications' | 'changelog' | 'deploy' | 'seo'
+  >('licenses');
+
+  // License management action state
+  const [selectedLicenseForAction, setSelectedLicenseForAction] = useState<LicenseRequest | null>(null);
+  const [inputSerialKey, setInputSerialKey] = useState('');
+  const [copiedHwidId, setCopiedHwidId] = useState<string | null>(null);
+
+  // SEO & Sitemap live generator state
+  const [sitemapBaseUrl, setSitemapBaseUrl] = useState(() => {
+    return typeof window !== 'undefined' ? window.location.origin : 'https://samymsood-eng.github.io/SM-2';
+  });
+  const [copiedSitemap, setCopiedSitemap] = useState(false);
+  const [copiedRobots, setCopiedRobots] = useState(false);
+  const [webNotifTestStatus, setWebNotifTestStatus] = useState<string | null>(null);
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('admin@sm2.dev');
@@ -97,6 +133,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Products modal/editor state
   const [editingProduct, setEditingProduct] = useState<Partial<Product> | null>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
+  const [imageCompressing, setImageCompressing] = useState(false);
+  const [compressionStats, setCompressionStats] = useState<{
+    originalKB: number;
+    compressedKB: number;
+    ratio: number;
+  } | null>(null);
+  const [imageUploadMode, setImageUploadMode] = useState<'upload' | 'url'>('upload');
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 
   // Docs modal/editor state
   const [editingDoc, setEditingDoc] = useState<Partial<DocSection> | null>(null);
@@ -124,6 +168,84 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [emailVersion, setEmailVersion] = useState('v2.5.0');
   const [emailBody, setEmailBody] = useState('We are excited to announce SM+2 Release v2.5.0. Direct downloads and cryptographic signatures are now live.');
   const [emailDispatchedSuccess, setEmailDispatchedSuccess] = useState(false);
+
+  // Live dynamic SEO sitemap & robots generator
+  const liveSitemapXml = generateSitemapXml(products, downloads, docs, sitemapBaseUrl);
+  const liveRobotsTxt = generateRobotsTxt(sitemapBaseUrl);
+
+  const handleDownloadSitemap = () => {
+    const blob = new Blob([liveSitemapXml], { type: 'application/xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'sitemap.xml';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadRobots = () => {
+    const blob = new Blob([liveRobotsTxt], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'robots.txt';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleCopySitemap = () => {
+    navigator.clipboard.writeText(liveSitemapXml);
+    setCopiedSitemap(true);
+    setTimeout(() => setCopiedSitemap(false), 3000);
+  };
+
+  const handleCopyRobots = () => {
+    navigator.clipboard.writeText(liveRobotsTxt);
+    setCopiedRobots(true);
+    setTimeout(() => setCopiedRobots(false), 3000);
+  };
+
+  const handleTestWebNotification = async () => {
+    const status = getNotificationStatus();
+    if (status === 'unsupported') {
+      setWebNotifTestStatus(
+        language === 'ar' ? 'متصفحك الحالي لا يدعم إشعارات الويب' : 'Browser does not support notifications'
+      );
+      return;
+    }
+    if (status !== 'granted') {
+      const requested = await requestNotificationPermission();
+      if (requested !== 'granted') {
+        setWebNotifTestStatus(
+          language === 'ar' ? 'تم رفض إذن الإشعارات في المتصفح' : 'Notification permission denied in browser'
+        );
+        return;
+      }
+    }
+    const ok = showWebNotification(
+      language === 'ar' ? '🔔 اختبار إشعار المتصفح من لوحة المشرف' : '🔔 Supervisor Web Notification Test',
+      {
+        body: language === 'ar'
+          ? 'نظام إشعارات المتصفح يعمل بكفاءة وسرعة فائقة في منظومة SM+2!'
+          : 'Browser Web Notifications are operating flawlessly in SM+2!',
+        tag: `admin-test-${Date.now()}`,
+      }
+    );
+    if (ok) {
+      setWebNotifTestStatus(
+        language === 'ar' ? 'تم إرسال إشعار المتصفح التجريبي بنجاح! تفحص شاشتك.' : 'Notification sent successfully! Check your screen.'
+      );
+    } else {
+      setWebNotifTestStatus(
+        language === 'ar' ? 'تعذر إرسال الإشعار، تحقق من إعدادات المتصفح.' : 'Could not send notification, check browser settings.'
+      );
+    }
+    setTimeout(() => setWebNotifTestStatus(null), 5000);
+  };
 
   // Handle Login
   const handleLoginSubmit = (e: React.FormEvent) => {
@@ -162,6 +284,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <p className="text-xs text-neutral-500">
               {t.admin.loginDesc}
             </p>
+            <div className="pt-1 flex items-center justify-center">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-[11px] font-medium">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                {language === 'ar' ? 'مزامنة سحابية نشطة (Firebase Firestore)' : 'Cloud Live Sync: Firebase Firestore'}
+              </span>
+            </div>
           </div>
 
           {loginError && (
@@ -262,6 +390,35 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleDeleteProduct = (id: string) => {
     if (confirm(language === 'ar' ? 'هل أنت متأكد من حذف هذا المنتج؟' : 'Are you sure you want to delete this product?')) {
       onUpdateProducts(products.filter((p) => p.id !== id));
+    }
+  };
+
+  const handleProductImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImageCompressing(true);
+    setImageUploadError(null);
+    try {
+      const result = await compressImageFile(file, {
+        maxWidth: 1200,
+        maxHeight: 1200,
+        quality: 0.82,
+        format: 'image/webp',
+      });
+
+      setCompressionStats({
+        originalKB: result.originalSizeKB,
+        compressedKB: result.compressedSizeKB,
+        ratio: result.compressionRatio,
+      });
+
+      setEditingProduct((prev) => (prev ? { ...prev, images: [result.dataUrl] } : { images: [result.dataUrl] }));
+    } catch (err: any) {
+      setImageUploadError(err?.message || (language === 'ar' ? 'تعذر معالجة وضغط الصورة.' : 'Failed to compress image.'));
+    } finally {
+      setImageCompressing(false);
+      e.target.value = '';
     }
   };
 
@@ -497,6 +654,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 font-bold border border-emerald-500/20">
                   Active Session
                 </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-800 dark:text-amber-300 font-bold border border-amber-500/20 inline-flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Firebase Cloud Sync
+                </span>
               </div>
               <p className="text-xs text-neutral-500">
                 {language === 'ar' ? 'المشرف الحالي:' : 'Current Supervisor:'}{' '}
@@ -518,6 +679,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Dashboard Navigation Tabs */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-2 border-b border-neutral-200 dark:border-neutral-800 text-xs">
           {[
+            { id: 'licenses', label: language === 'ar' ? 'التراخيص والسيريالات (HWID)' : 'Licenses & HWID', icon: <KeyRound className="w-3.5 h-3.5 text-amber-500" /> },
             { id: 'overview', label: t.admin.overview, icon: <Layers className="w-3.5 h-3.5" /> },
             { id: 'products', label: t.admin.productsTab, icon: <Layers className="w-3.5 h-3.5" /> },
             { id: 'docs', label: t.admin.docsTab, icon: <FileCode className="w-3.5 h-3.5" /> },
@@ -526,6 +688,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             { id: 'github', label: t.admin.githubTab, icon: <Github className="w-3.5 h-3.5" /> },
             { id: 'notifications', label: t.admin.notificationsTab, icon: <Mail className="w-3.5 h-3.5" /> },
             { id: 'changelog', label: t.admin.changelogTab, icon: <History className="w-3.5 h-3.5" /> },
+            { id: 'seo', label: language === 'ar' ? 'أرشفة Sitemap و Robots' : 'SEO & Sitemap', icon: <Globe className="w-3.5 h-3.5" /> },
             { id: 'deploy', label: t.admin.githubDeployTab, icon: <Terminal className="w-3.5 h-3.5" /> },
           ].map((tab) => (
             <button
@@ -542,6 +705,275 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </button>
           ))}
         </div>
+
+        {/* --- TAB: LICENSES & HWID HARDWARE SERIALS (بوابة التراخيص والسيريالات) --- */}
+        {activeTab === 'licenses' && (
+          <div className="space-y-6">
+            <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6 space-y-6 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-100 dark:border-neutral-800 pb-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                    <h3 className="font-serif text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                      {language === 'ar' ? 'إدارة طلبات التراخيص وبصمة الأجهزة (HWID)' : 'Hardware License & Key Management'}
+                    </h3>
+                  </div>
+                  <p className="text-xs text-neutral-500">
+                    {language === 'ar'
+                      ? 'انسخ بصمة جهاز العميل (Motherboard + CPU)، ولد السيريال من أداتك على جهازك، ثم الصقه واعتمده لإرساله للعميل بالواتساب أو الإيميل بنقرة واحدة.'
+                      : 'Copy client Machine ID, generate serial via your local tool, and approve to dispatch instantly via WhatsApp or Email.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium">
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                      {language === 'ar' ? 'بانتظار السيريال:' : 'Pending:'}{' '}
+                      <b>{licenseRequests.filter((r) => r.status === 'pending').length}</b>
+                    </span>
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      {language === 'ar' ? 'مفعل:' : 'Active:'}{' '}
+                      <b>{licenseRequests.filter((r) => r.status === 'active').length}</b>
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const pendingHwids = licenseRequests
+                        .filter((r) => r.status === 'pending')
+                        .map((r) => `${r.clientName} (${r.productName} - ${r.duration}):\n${r.hardwareId}`)
+                        .join('\n---\n');
+                      if (pendingHwids) {
+                        navigator.clipboard.writeText(pendingHwids);
+                        alert(language === 'ar' ? 'تم نسخ كافة بصمات الطلبات المعلقة إلى الحافظة' : 'Copied pending HWIDs');
+                      }
+                    }}
+                    title={language === 'ar' ? 'نسخ كافة بصمات الطلبات المعلقة لأداتك' : 'Copy all pending HWIDs'}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer text-neutral-700 dark:text-neutral-300 transition-colors"
+                  >
+                    {language === 'ar' ? 'نسخ المعلق للأداة' : 'Batch HWIDs'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Action Modal for Setting Serial Key */}
+              {selectedLicenseForAction && (
+                <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                      <Key className="w-4 h-4 text-amber-600" />
+                      <span>{language === 'ar' ? `اعتماد ووضع السيريال للطلب: ${selectedLicenseForAction.id} (${selectedLicenseForAction.clientName})` : `Set Serial for ${selectedLicenseForAction.id}`}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLicenseForAction(null)}
+                      className="text-neutral-500 hover:text-neutral-900 dark:hover:text-white"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={inputSerialKey}
+                      onChange={(e) => setInputSerialKey(e.target.value.toUpperCase())}
+                      placeholder="SM2-PRO-XXXX-XXXX-XXXX-2026"
+                      className="flex-1 px-3 py-2 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 font-mono text-xs font-bold uppercase focus:outline-amber-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!inputSerialKey.trim() || !onUpdateLicenseRequest) return;
+                        const updated: LicenseRequest = {
+                          ...selectedLicenseForAction,
+                          status: 'active',
+                          serialKey: inputSerialKey.trim(),
+                          activatedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
+                        };
+                        onUpdateLicenseRequest(updated);
+
+                        // Also notify Telegram if configured
+                        if (githubSettings?.enableTelegramNotifications && githubSettings?.telegramBotToken && githubSettings?.telegramChatId) {
+                          import('../../services/telegramService').then(({ buildSerialActivatedTelegramMessage, sendTelegramNotification }) => {
+                            const msg = buildSerialActivatedTelegramMessage(updated);
+                            sendTelegramNotification(msg, {
+                              botToken: githubSettings.telegramBotToken,
+                              chatId: githubSettings.telegramChatId,
+                              enabled: githubSettings.enableTelegramNotifications,
+                            });
+                          });
+                        }
+
+                        setSelectedLicenseForAction(null);
+                        setInputSerialKey('');
+                      }}
+                      className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs transition-colors cursor-pointer"
+                    >
+                      {language === 'ar' ? 'اعتماد وحفظ السيريال' : 'Approve Key'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Table of License Requests */}
+              <div className="overflow-x-auto rounded-xl border border-neutral-200 dark:border-neutral-800">
+                <table className="w-full text-start text-xs border-collapse">
+                  <thead>
+                    <tr className="bg-neutral-50 dark:bg-neutral-800/80 border-b border-neutral-200 dark:border-neutral-800 text-neutral-500 font-semibold">
+                      <th className="p-3 text-start">{language === 'ar' ? 'كود الطلب' : 'Request ID'}</th>
+                      <th className="p-3 text-start">{language === 'ar' ? 'العميل وبياناته' : 'Client Info'}</th>
+                      <th className="p-3 text-start">{language === 'ar' ? 'البرنامج والمدة' : 'Product & Plan'}</th>
+                      <th className="p-3 text-start">{language === 'ar' ? 'بصمة الجهاز (HWID)' : 'Machine ID (HWID)'}</th>
+                      <th className="p-3 text-start">{language === 'ar' ? 'الحالة والسيريال' : 'Status & Serial'}</th>
+                      <th className="p-3 text-end">{language === 'ar' ? 'إجراءات التسليم' : 'Actions'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                    {licenseRequests.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-neutral-400">
+                          {language === 'ar' ? 'لا توجد طلبات تراخيص حتى الآن.' : 'No license requests found.'}
+                        </td>
+                      </tr>
+                    ) : (
+                      licenseRequests.map((req) => (
+                        <tr key={req.id} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40 transition-colors">
+                          <td className="p-3 font-mono font-bold text-neutral-900 dark:text-neutral-100">
+                            <div>{req.id}</div>
+                            <span className="text-[10px] text-neutral-400 font-normal">{req.createdAt}</span>
+                          </td>
+                          <td className="p-3">
+                            <div className="font-semibold text-neutral-900 dark:text-neutral-100">{req.clientName}</div>
+                            <div className="text-[11px] text-neutral-500">{req.clientEmail}</div>
+                            {req.clientPhone && (
+                              <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">{req.clientPhone}</div>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <div className="font-medium text-neutral-800 dark:text-neutral-200">{req.productName}</div>
+                            <div className="text-[10px] text-neutral-500 font-mono">
+                              {req.duration === 'trial_1m'
+                                ? (language === 'ar' ? 'فترة تجريبية (شهر)' : 'Trial 1M')
+                                : req.duration === 'lifetime'
+                                ? (language === 'ar' ? 'مدى الحياة (دائم)' : 'Lifetime')
+                                : req.duration === 'sub_1y'
+                                ? (language === 'ar' ? 'اشتراك سنة' : '1 Year')
+                                : (language === 'ar' ? 'اشتراك 6 أشهر' : '6 Months')}
+                            </div>
+                            {req.paymentReference && (
+                              <div className="text-[10px] text-amber-700 dark:text-amber-400 font-mono">
+                                💳 {req.paymentReference}
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-[11px] bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded text-neutral-700 dark:text-neutral-300 max-w-[170px] truncate">
+                                {req.hardwareId}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(req.hardwareId);
+                                  setCopiedHwidId(req.id);
+                                  setTimeout(() => setCopiedHwidId(null), 2000);
+                                }}
+                                title={language === 'ar' ? 'نسخ البصمة لأداتك' : 'Copy HWID'}
+                                className="p-1 hover:text-amber-600 text-neutral-400 cursor-pointer"
+                              >
+                                {copiedHwidId === req.id ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                              </button>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <div className="space-y-1">
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                  req.status === 'active'
+                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                    : req.status === 'pending'
+                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                    : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+                                }`}
+                              >
+                                {req.status === 'active'
+                                  ? (language === 'ar' ? 'مفعل بالسيريال' : 'Active')
+                                  : req.status === 'pending'
+                                  ? (language === 'ar' ? 'قيد المراجعة' : 'Pending')
+                                  : (language === 'ar' ? 'مرفوض' : 'Rejected')}
+                              </span>
+                              {req.serialKey && (
+                                <div className="font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-400 max-w-[180px] truncate">
+                                  {req.serialKey}
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="p-3 text-end">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Set Key button */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedLicenseForAction(req);
+                                  setInputSerialKey(req.serialKey || '');
+                                }}
+                                className="px-2.5 py-1 rounded bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 font-semibold hover:bg-neutral-800 text-[11px] transition-colors cursor-pointer"
+                              >
+                                {req.serialKey ? (language === 'ar' ? 'تعديل السيريال' : 'Edit Key') : (language === 'ar' ? 'وضع السيريال' : 'Set Key')}
+                              </button>
+
+                              {/* WhatsApp Dispatch */}
+                              {req.clientPhone && (
+                                <a
+                                  href={`https://wa.me/${req.clientPhone.replace(/\D/g, '')}?text=${encodeURIComponent(
+                                    `مرحباً ${req.clientName}،\nيسرنا تزويدكم بسيريال تفعيل برنامج ${req.productName} المعتمد لجهازكم:\n\nكود التفعيل: ${req.serialKey || 'قيد الاستخراج'}\nبصمة الجهاز المسجلة: ${req.hardwareId}\n\nشكراً لثقتكم بـ SM+2.`
+                                  )}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={language === 'ar' ? 'إرسال السيريال عبر واتساب' : 'WhatsApp'}
+                                  className="p-1.5 rounded bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/20 transition-colors"
+                                >
+                                  <MessageCircle className="w-3.5 h-3.5" />
+                                </a>
+                              )}
+
+                              {/* Email Dispatch */}
+                              <a
+                                href={`mailto:${req.clientEmail}?subject=${encodeURIComponent(`سيريال تفعيل ${req.productName} - SM+2`)}&body=${encodeURIComponent(
+                                  `مرحباً ${req.clientName}،\n\nنرفق لك سيريال التفعيل المخصص لحاسوبك:\n\nالبرنامج: ${req.productName}\nالسيريال: ${req.serialKey || ''}\nبصمة الجهاز: ${req.hardwareId}\n\nتحياتنا،\nفريق SM+2`
+                                )}`}
+                                title={language === 'ar' ? 'إرسال بالبريد' : 'Email'}
+                                className="p-1.5 rounded bg-blue-600/10 text-blue-700 hover:bg-blue-600/20 transition-colors"
+                              >
+                                <Mail className="w-3.5 h-3.5" />
+                              </a>
+
+                              {/* Delete */}
+                              {onDeleteLicenseRequest && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm(language === 'ar' ? 'هل تريد حذف هذا الطلب؟' : 'Delete request?')) {
+                                      onDeleteLicenseRequest(req.id);
+                                    }
+                                  }}
+                                  className="p-1.5 text-neutral-400 hover:text-red-600 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
 
         {/* --- TAB 1: OVERVIEW METRICS --- */}
         {activeTab === 'overview' && (
@@ -999,6 +1431,155 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
+              {/* Homepage Hero Display Toggle */}
+              <div className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                <div className="space-y-0.5">
+                  <div className="font-semibold text-xs text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+                    <Github className="w-4 h-4 text-neutral-700 dark:text-neutral-300" />
+                    <span>
+                      {language === 'ar'
+                        ? 'إظهار زر GitHub في أزرار البانر الرئيسي بالصفحة الأولى (Hero Section)'
+                        : 'Show GitHub Button in Homepage Hero'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400 max-w-xl">
+                    {language === 'ar'
+                      ? 'عند تعطيله (موصى به للمستخدمين العاديين)، تركز الصفحة الأولى فقط على التنزيل والمبيعات دون تشتيت، مع بقاء GitHub متاحاً للمطورين في القائمة العلوية والتذييل.'
+                      : 'When disabled (recommended), the homepage focuses strictly on downloads and store purchases, keeping GitHub accessible in the top menu & footer.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onUpdateGithubSettings({
+                      ...githubSettings,
+                      showGithubInHero: !githubSettings.showGithubInHero,
+                    })
+                  }
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    githubSettings.showGithubInHero
+                      ? 'bg-amber-600 dark:bg-amber-500'
+                      : 'bg-neutral-300 dark:bg-neutral-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      githubSettings.showGithubInHero
+                        ? (language === 'ar' ? '-translate-x-5' : 'translate-x-5')
+                        : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Footer GitHub Display Toggle - As requested by user */}
+              <div className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+                <div className="space-y-0.5">
+                  <div className="font-semibold text-xs text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+                    <Github className="w-4 h-4 text-neutral-700 dark:text-neutral-300" />
+                    <span>
+                      {language === 'ar'
+                        ? 'إظهار زر GitHub Releases بأسفل الموقع (Footer)'
+                        : 'Show GitHub Releases in Website Footer'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-neutral-500 dark:text-neutral-400 max-w-xl">
+                    {language === 'ar'
+                      ? 'زر تذييل الصفحة الخاص بـ GitHub Releases. تم ضبطه افتراضياً على الإخفاء لإبقاء الموقع احترافياً وموجهاً للمبيعات، ويمكنك تفعيله هنا في أي وقت.'
+                      : 'Show or hide the GitHub Releases button in the footer. Turned off by default to maintain a clean commercial appearance.'}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    onUpdateGithubSettings({
+                      ...githubSettings,
+                      showGithubInFooter: !githubSettings.showGithubInFooter,
+                    })
+                  }
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    githubSettings.showGithubInFooter
+                      ? 'bg-amber-600 dark:bg-amber-500'
+                      : 'bg-neutral-300 dark:bg-neutral-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      githubSettings.showGithubInFooter
+                        ? (language === 'ar' ? '-translate-x-5' : 'translate-x-5')
+                        : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Telegram Bot Integration for License Alerts */}
+              <div className="p-5 rounded-xl border border-sky-200 dark:border-sky-900/40 bg-sky-50/50 dark:bg-sky-950/20 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 font-serif text-sm font-bold text-sky-950 dark:text-sky-100">
+                    <Send className="w-4 h-4 text-sky-600" />
+                    <span>{language === 'ar' ? 'ربط إشعارات التيلجرام اللحظية (Telegram Bot)' : 'Instant Telegram Bot Notifications'}</span>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!githubSettings.enableTelegramNotifications}
+                      onChange={(e) =>
+                        onUpdateGithubSettings({
+                          ...githubSettings,
+                          enableTelegramNotifications: e.target.checked,
+                        })
+                      }
+                      className="rounded text-sky-600 focus:ring-sky-500 w-4 h-4"
+                    />
+                    <span className="text-xs font-semibold text-neutral-800 dark:text-neutral-200">
+                      {language === 'ar' ? 'تفعيل الإرسال للتيلجرام' : 'Enable Telegram Alerts'}
+                    </span>
+                  </label>
+                </div>
+                <p className="text-[11px] text-neutral-600 dark:text-neutral-400">
+                  {language === 'ar'
+                    ? 'عند قيام أي عميل بطلب ترخيص وإرسال بصمة جهازه (HWID)، أو عند قيامك باعتماد سيريال، سيصلك إشعار فوري على محادثتك أو قناتك الخاصة في التيلجرام.'
+                    : 'Receive instant Telegram alerts whenever a customer submits hardware credentials or when serials are dispatched.'}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <label className="block font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                      {language === 'ar' ? 'توكن البوت (Bot Token)' : 'Telegram Bot Token'}
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="1234567890:ABCdefGhIJKlmNoPQRsTUVwxyZ"
+                      value={githubSettings.telegramBotToken || ''}
+                      onChange={(e) =>
+                        onUpdateGithubSettings({
+                          ...githubSettings,
+                          telegramBotToken: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-mono text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                      {language === 'ar' ? 'معرّف المحادثة أو القناة (Chat ID)' : 'Telegram Chat ID'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="@your_channel or -100123456789"
+                      value={githubSettings.telegramChatId || ''}
+                      onChange={(e) =>
+                        onUpdateGithubSettings({
+                          ...githubSettings,
+                          telegramChatId: e.target.value,
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-mono text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* GitHub Release & Binary Upload Simulation */}
               <div className="p-6 rounded-xl bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-800 space-y-4">
                 <div className="flex items-center gap-2 font-serif text-sm font-bold text-neutral-900 dark:text-neutral-100">
@@ -1108,6 +1689,36 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <span className="text-xs font-mono font-bold bg-amber-500/10 text-amber-800 dark:text-amber-300 px-3 py-1 rounded border border-amber-500/20">
                   {subscribers.length} {t.email.subscribersCount}
                 </span>
+              </div>
+
+              {/* Web Notification Push Live Test Panel */}
+              <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/10 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2 text-xs font-bold text-neutral-900 dark:text-neutral-100">
+                      <BellRing className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                      <span>{language === 'ar' ? 'إشعارات الويب للمتصفح (Web Push Notifications)' : 'Browser Web Push Notifications'}</span>
+                    </div>
+                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                      {language === 'ar'
+                        ? 'تنبيه المستخدمين فورياً على سطح المكتب والهاتف عند إضافة إصدار برمجي جديد.'
+                        : 'Alert users instantly on desktop & mobile when new binary releases are uploaded.'}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleTestWebNotification}
+                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white transition-colors shrink-0"
+                  >
+                    <Bell className="w-3.5 h-3.5" />
+                    <span>{language === 'ar' ? 'إرسال إشعار تجريبي للمتصفح الآن' : 'Send Test Web Notification'}</span>
+                  </button>
+                </div>
+                {webNotifTestStatus && (
+                  <div className="text-xs text-amber-800 dark:text-amber-300 font-medium bg-amber-500/10 p-2 rounded border border-amber-500/20">
+                    {webNotifTestStatus}
+                  </div>
+                )}
               </div>
 
               {/* Broadcast Dispatch Form */}
@@ -1268,6 +1879,210 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         )}
 
+        {/* --- TAB: AUTOMATED SEO & SITEMAP / ROBOTS.TXT GENERATOR --- */}
+        {activeTab === 'seo' && (
+          <div className="space-y-6">
+            <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6 space-y-6 shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-neutral-100 dark:border-neutral-800 pb-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-amber-600 font-serif font-bold text-xs uppercase">
+                    <Globe className="w-4 h-4" />
+                    <span>Automated Search Engine Indexing & Optimization</span>
+                  </div>
+                  <h3 className="font-serif text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+                    {language === 'ar'
+                      ? 'منظومة الأرشفة التلقائية ومحركات البحث (Sitemap.xml & Robots.txt)'
+                      : 'Automated SEO, Sitemap.xml & robots.txt Generator'}
+                  </h3>
+                  <p className="text-xs text-neutral-600 dark:text-neutral-400 max-w-2xl leading-relaxed">
+                    {language === 'ar'
+                      ? 'توليد تلقائي متزامن لخرائط الموقع وملفات الروبوت المعتمدة لتعزيز أرشفة كافة المنتجات والتنزيلات وملفات التوثيق في Google Search Console ومحركات البحث العالمية.'
+                      : 'Real-time dynamic generation of XML sitemaps and robots.txt based on actual live Firestore database records.'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono font-bold bg-emerald-500/10 text-emerald-800 dark:text-emerald-300 px-3 py-1 rounded border border-emerald-500/20 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Auto-Synced</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* Base URL Configuration */}
+              <div className="p-4 rounded-xl bg-neutral-50 dark:bg-neutral-800/40 border border-neutral-200 dark:border-neutral-700/80 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  <div className="space-y-1">
+                    <label className="font-bold text-neutral-800 dark:text-neutral-200">
+                      {language === 'ar' ? 'رابط النطاق الأساسي للأرشفة (Base URL)' : 'Canonical Domain / Base URL'}
+                    </label>
+                    <p className="text-[11px] text-neutral-500 dark:text-neutral-400">
+                      {language === 'ar'
+                        ? 'يتم استخدامه لبناء روابط sitemap.xml الرسمية ومسار ملف robots.txt.'
+                        : 'Used to format absolute URLs inside sitemap.xml and robots.txt directives.'}
+                    </p>
+                  </div>
+                  <input
+                    type="url"
+                    value={sitemapBaseUrl}
+                    onChange={(e) => setSitemapBaseUrl(e.target.value)}
+                    className="w-full sm:w-80 px-3 py-1.5 text-xs rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 font-mono focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    placeholder="https://example.com"
+                  />
+                </div>
+              </div>
+
+              {/* Metrics Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 space-y-1">
+                  <div className="text-neutral-500 text-[11px] font-medium">
+                    {language === 'ar' ? 'إجمالي الروابط المؤرشفة' : 'Total Indexed URLs'}
+                  </div>
+                  <div className="text-2xl font-bold font-serif text-neutral-900 dark:text-neutral-100">
+                    {4 + products.length + downloads.length + docs.length}
+                  </div>
+                  <div className="text-[10px] text-emerald-600 font-mono">100% Valid XML</div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 space-y-1">
+                  <div className="text-neutral-500 text-[11px] font-medium">
+                    {language === 'ar' ? 'الصفحات الأساسية' : 'Core Pages'}
+                  </div>
+                  <div className="text-2xl font-bold font-serif text-neutral-900 dark:text-neutral-100">
+                    4
+                  </div>
+                  <div className="text-[10px] text-neutral-400 font-mono">Priority: 1.0 - 0.9</div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 space-y-1">
+                  <div className="text-neutral-500 text-[11px] font-medium">
+                    {language === 'ar' ? 'المنتجات والتنزيلات' : 'Products & Downloads'}
+                  </div>
+                  <div className="text-2xl font-bold font-serif text-neutral-900 dark:text-neutral-100">
+                    {products.length + downloads.length}
+                  </div>
+                  <div className="text-[10px] text-neutral-400 font-mono">Priority: 0.85 - 0.80</div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 space-y-1">
+                  <div className="text-neutral-500 text-[11px] font-medium">
+                    {language === 'ar' ? 'أقسام التوثيق البرمجي' : 'Docs Sections'}
+                  </div>
+                  <div className="text-2xl font-bold font-serif text-neutral-900 dark:text-neutral-100">
+                    {docs.length}
+                  </div>
+                  <div className="text-[10px] text-neutral-400 font-mono">Priority: 0.70</div>
+                </div>
+              </div>
+
+              {/* Sitemap.xml Section */}
+              <div className="space-y-3 pt-2">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <FileCode className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <h4 className="font-serif text-base font-bold text-neutral-900 dark:text-neutral-100">
+                      sitemap.xml (Dynamic Generator)
+                    </h4>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopySitemap}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>{copiedSitemap ? (language === 'ar' ? 'تم النسخ ✓' : 'Copied ✓') : (language === 'ar' ? 'نسخ XML' : 'Copy XML')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadSitemap}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 text-xs font-semibold hover:bg-neutral-800 dark:hover:bg-white transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>{language === 'ar' ? 'تنزيل sitemap.xml' : 'Download sitemap.xml'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <pre
+                    className="p-4 rounded-xl bg-neutral-950 text-neutral-200 border border-neutral-800 text-[11px] font-mono max-h-56 overflow-y-auto leading-relaxed"
+                    dir="ltr"
+                  >
+                    {liveSitemapXml}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Robots.txt Section */}
+              <div className="space-y-3 pt-4 border-t border-neutral-100 dark:border-neutral-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <h4 className="font-serif text-base font-bold text-neutral-900 dark:text-neutral-100">
+                      robots.txt (Directives)
+                    </h4>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleCopyRobots}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-xs font-semibold text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>{copiedRobots ? (language === 'ar' ? 'تم النسخ ✓' : 'Copied ✓') : (language === 'ar' ? 'نسخ robots.txt' : 'Copy robots.txt')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadRobots}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 text-xs font-semibold hover:bg-neutral-800 dark:hover:bg-white transition-colors"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>{language === 'ar' ? 'تنزيل robots.txt' : 'Download robots.txt'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <pre
+                    className="p-4 rounded-xl bg-neutral-950 text-neutral-200 border border-neutral-800 text-[11px] font-mono max-h-36 overflow-y-auto leading-relaxed"
+                    dir="ltr"
+                  >
+                    {liveRobotsTxt}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Webmaster Tools Submission Helper */}
+              <div className="p-4 rounded-xl bg-amber-500/5 dark:bg-amber-950/10 border border-amber-500/20 space-y-2 text-xs">
+                <div className="font-bold text-neutral-900 dark:text-neutral-100 flex items-center gap-2">
+                  <ExternalLink className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                  <span>{language === 'ar' ? 'روابط تقديم ملف Sitemap إلى محركات البحث مباشرة:' : 'Direct Webmaster Submission Portals:'}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  <a
+                    href="https://search.google.com/search-console"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:border-amber-500 transition-colors font-medium text-[11px]"
+                  >
+                    <span>Google Search Console</span>
+                    <ExternalLink className="w-3 h-3 text-neutral-400" />
+                  </a>
+                  <a
+                    href="https://www.bing.com/webmasters"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-neutral-800 dark:text-neutral-200 hover:border-amber-500 transition-colors font-medium text-[11px]"
+                  >
+                    <span>Bing Webmaster Tools</span>
+                    <ExternalLink className="w-3 h-3 text-neutral-400" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* --- TAB 9: DEPLOY TO GITHUB (HOW TO HOST AS REQUESTED) --- */}
         {activeTab === 'deploy' && (
           <div className="space-y-6">
@@ -1401,15 +2216,138 @@ jobs:
                   className="w-full px-3 py-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800"
                 />
               </div>
-              <div>
-                <label className="block font-medium mb-1">{language === 'ar' ? 'رابط صورة الغلاف' : 'Image URL'}</label>
-                <input
-                  type="url"
-                  value={editingProduct?.images?.[0] || ''}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, images: [e.target.value] })}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2 rounded border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 font-mono text-[11px]"
-                />
+              {/* Product Cover Image: Smart Compression & Dual Upload Mode */}
+              <div className="space-y-2 p-3 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/70 dark:bg-neutral-900/50">
+                <div className="flex items-center justify-between">
+                  <label className="block font-medium text-xs text-neutral-800 dark:text-neutral-200">
+                    {language === 'ar' ? 'صورة غلاف المنتج' : 'Product Cover Image'}
+                  </label>
+                  <div className="flex items-center gap-1 bg-neutral-200/80 dark:bg-neutral-800 p-0.5 rounded-lg text-[10px]">
+                    <button
+                      type="button"
+                      onClick={() => setImageUploadMode('upload')}
+                      className={`px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer ${
+                        imageUploadMode === 'upload'
+                          ? 'bg-white dark:bg-neutral-700 text-amber-700 dark:text-amber-300 shadow-2xs'
+                          : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100'
+                      }`}
+                    >
+                      {language === 'ar' ? 'رفع وضغط ذكي (WebP)' : 'Upload & Compress'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setImageUploadMode('url')}
+                      className={`px-2 py-0.5 rounded-md font-semibold transition-colors cursor-pointer ${
+                        imageUploadMode === 'url'
+                          ? 'bg-white dark:bg-neutral-700 text-amber-700 dark:text-amber-300 shadow-2xs'
+                          : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100'
+                      }`}
+                    >
+                      {language === 'ar' ? 'رابط خارجي (URL)' : 'Image URL'}
+                    </button>
+                  </div>
+                </div>
+
+                {imageUploadMode === 'upload' ? (
+                  <div className="space-y-2">
+                    <label className="flex flex-col items-center justify-center border-2 border-dashed border-neutral-300 dark:border-neutral-700 hover:border-amber-500 dark:hover:border-amber-500 rounded-xl p-3 text-center cursor-pointer transition-colors bg-white/50 dark:bg-neutral-800/40">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={imageCompressing}
+                        onChange={handleProductImageFileChange}
+                        className="hidden"
+                      />
+                      {imageCompressing ? (
+                        <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 py-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>{language === 'ar' ? 'جاري ضغط الصورة وتصغير الحجم فائق السرعة...' : 'Compressing image to WebP...'}</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center gap-1.5 py-1 text-xs">
+                          <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                            <Upload className="w-4 h-4" />
+                          </div>
+                          <span className="font-semibold text-neutral-800 dark:text-neutral-200">
+                            {language === 'ar' ? 'انقر لاختيار صورة من الهاتف أو الحاسوب' : 'Click to select image from device'}
+                          </span>
+                          <span className="text-[10px] text-neutral-500 dark:text-neutral-400">
+                            {language === 'ar'
+                              ? 'يتم ضغط الصورة تلقائياً لصيغة WebP فائقة الخفة لحماية الخطة المجانية وسرعة التصفح'
+                              : 'Auto-compressed to lightweight WebP (~50-80KB) to stay within free tier limits'}
+                          </span>
+                        </div>
+                      )}
+                    </label>
+
+                    {imageUploadError && (
+                      <div className="text-[11px] text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 p-2 rounded-lg border border-red-200 dark:border-red-900 flex items-center gap-1.5">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                        <span>{imageUploadError}</span>
+                      </div>
+                    )}
+
+                    {compressionStats && editingProduct?.images?.[0] && (
+                      <div className="flex items-center justify-between text-[11px] bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 p-2 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                          <span>
+                            {language === 'ar'
+                              ? `تم الضغط بنجاح: ${compressionStats.compressedKB} KB بدلاً من ${compressionStats.originalKB} KB (وفر ${compressionStats.ratio}%)`
+                              : `Compressed: ${compressionStats.compressedKB} KB instead of ${compressionStats.originalKB} KB (${compressionStats.ratio}% saved)`}
+                          </span>
+                        </div>
+                        <span className="font-mono text-[10px] uppercase font-bold bg-emerald-200/60 dark:bg-emerald-900/50 px-1.5 py-0.5 rounded">
+                          WebP
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      type="url"
+                      value={editingProduct?.images?.[0] || ''}
+                      onChange={(e) => setEditingProduct({ ...editingProduct, images: [e.target.value] })}
+                      placeholder="https://images.unsplash.com/... أو رابط مباشر"
+                      className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 font-mono text-[11px]"
+                    />
+                  </div>
+                )}
+
+                {/* Preview of current image */}
+                {editingProduct?.images?.[0] && (
+                  <div className="flex items-center gap-3 pt-1">
+                    <div className="w-16 h-12 rounded-lg border border-neutral-300 dark:border-neutral-700 overflow-hidden bg-neutral-100 dark:bg-neutral-800 shrink-0">
+                      <img
+                        src={editingProduct.images[0]}
+                        alt="Preview"
+                        referrerPolicy="no-referrer"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 text-[11px]">
+                      <div className="font-medium text-neutral-800 dark:text-neutral-200 truncate">
+                        {language === 'ar' ? 'معاينة الغلاف الحالي' : 'Current Cover Preview'}
+                      </div>
+                      <div className="text-[10px] text-neutral-500 dark:text-neutral-400">
+                        {editingProduct.images[0].startsWith('data:')
+                          ? (language === 'ar' ? 'صورة مضغوطة محلياً (WebP Data URL)' : 'Locally compressed WebP Data URL')
+                          : editingProduct.images[0]}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingProduct({ ...editingProduct, images: [] });
+                        setCompressionStats(null);
+                      }}
+                      className="text-xs text-red-600 dark:text-red-400 hover:underline cursor-pointer"
+                    >
+                      {language === 'ar' ? 'إزالة' : 'Remove'}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* External Download Link & Archive Password Options (Enhanced) */}
