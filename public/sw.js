@@ -1,11 +1,18 @@
 // Service Worker for SM+2 Platform PWA
-const CACHE_NAME = 'sm2-pwa-cache-v1';
+const CACHE_NAME = 'sm2-pwa-cache-v2';
 const STATIC_ASSETS = [
-  './',
-  './index.html',
-  './logo.png',
-  './manifest.webmanifest',
+  '/SM-2/',
+  '/SM-2/index.html',
+  '/SM-2/logo.png',
+  '/SM-2/manifest.webmanifest',
 ];
+
+// Skip waiting when requested by the main thread
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
 
 // Install Event
 self.addEventListener('install', (event) => {
