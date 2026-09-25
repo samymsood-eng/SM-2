@@ -185,5 +185,7 @@ export interface LicenseRequest {
   serialKey?: string;
   createdAt: string;
   activatedAt?: string;
+  expiresAt?: string;
+  licenseType?: 'annual' | 'lifetime' | 'trial' | 'custom';
   notes?: string;
 }

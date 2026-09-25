@@ -1,0 +1,22 @@
+{
+  "name": "منظومة SM+2 للحلول والأنظمة البرمجية",
+  "short_name": "SM+2 System",
+  "description": "المنصة الرسمية المعتمدة لبرمجيات وأنظمة SM+2 وتفعيل التراخيص والتنزيل المباشر",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#d97706",
+  "orientation": "any",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "./logo.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["utilities", "business", "developer"]
+}

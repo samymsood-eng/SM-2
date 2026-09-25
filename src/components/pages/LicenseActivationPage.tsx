@@ -27,6 +27,61 @@ interface LicenseActivationPageProps {
   language: Language;
 }
 
+// Helper function for HWID validation
+export function validateHwid(hwid: string): {
+  isValid: boolean;
+  messageAr: string;
+  messageEn: string;
+  status: 'empty' | 'invalid' | 'valid';
+} {
+  const clean = hwid.trim();
+  if (!clean) {
+    return { isValid: false, messageAr: '', messageEn: '', status: 'empty' };
+  }
+  if (clean.length < 10) {
+    return {
+      isValid: false,
+      messageAr: 'البصمة قصيرة جداً (يجب أن تتكون من 10 خانات على الأقل مستخرجة من البرنامج)',
+      messageEn: 'Hardware ID too short (must be at least 10 characters)',
+      status: 'invalid',
+    };
+  }
+  if (!/^[A-Za-z0-9\-_:.]+$/.test(clean)) {
+    return {
+      isValid: false,
+      messageAr: 'البصمة تحتوي على رموز غير صالحة أو مسافات. المسموح فقط: أحرف، أرقام، ورموز (-_:.)',
+      messageEn: 'Contains invalid characters or spaces. Only alphanumeric and (-_:.) allowed',
+      status: 'invalid',
+    };
+  }
+  if (/^(.)\1+$/.test(clean)) {
+    return {
+      isValid: false,
+      messageAr: 'البصمة المدخلة غير صحيحة (نمط متكرر وهمي)',
+      messageEn: 'Invalid Hardware ID (repeated dummy character pattern)',
+      status: 'invalid',
+    };
+  }
+  return {
+    isValid: true,
+    messageAr: 'صيغة البصمة صحيحة ومطابقة للوحة الأم والمعالج ✓',
+    messageEn: 'Valid Hardware ID format verified ✓',
+    status: 'valid',
+  };
+}
+
+// Calculate default expiration date based on duration
+export function calculateExpirationDate(duration: LicenseDuration): string | undefined {
+  if (duration === 'lifetime') return undefined;
+  const now = new Date();
+  if (duration === 'trial_1m') now.setMonth(now.getMonth() + 1);
+  else if (duration === 'trial_2m') now.setMonth(now.getMonth() + 2);
+  else if (duration === 'trial_3m') now.setMonth(now.getMonth() + 3);
+  else if (duration === 'sub_6m') now.setMonth(now.getMonth() + 6);
+  else if (duration === 'sub_1y') now.setFullYear(now.getFullYear() + 1);
+  return now.toISOString().split('T')[0];
+}
+
 export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
   products,
   licenseRequests,
@@ -52,13 +107,20 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
   const [showHwidHelp, setShowHwidHelp] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Real-time validation
+  const hwidValidation = validateHwid(hardwareId);
+
   // Handle Submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!clientName.trim() || !clientEmail.trim() || !hardwareId.trim()) return;
+    if (!hwidValidation.isValid) return;
 
     setSubmitting(true);
     const newId = `LIC-${Math.floor(10000 + Math.random() * 90000)}`;
+    const effectiveDuration = requestType === 'trial' ? 'trial_1m' : duration;
+    const effectiveType = requestType === 'trial' ? 'trial' : (duration === 'lifetime' ? 'lifetime' : 'annual');
+    const calculatedExpiry = calculateExpirationDate(effectiveDuration);
 
     const newRequest: LicenseRequest = {
       id: newId,
@@ -67,7 +129,9 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
       clientPhone: clientPhone.trim(),
       productName: selectedProduct,
       hardwareId: hardwareId.trim().toUpperCase(),
-      duration: requestType === 'trial' ? 'trial_1m' : duration,
+      duration: effectiveDuration,
+      licenseType: effectiveType,
+      expiresAt: calculatedExpiry,
       paymentReference: requestType === 'paid' ? paymentRef.trim() : undefined,
       status: 'pending',
       createdAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
@@ -272,9 +336,32 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
 
               {/* Hardware ID / Machine Fingerprint */}
               <div>
-                <label className="block font-medium mb-1 text-neutral-800 dark:text-neutral-200">
-                  {language === 'ar' ? 'بصمة الجهاز المستخرجة من البرنامج (Hardware ID) *' : 'Hardware ID (Motherboard + CPU Fingerprint) *'}
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-medium text-neutral-800 dark:text-neutral-200">
+                    {language === 'ar' ? 'بصمة الجهاز المستخرجة من البرنامج (Hardware ID) *' : 'Hardware ID (Motherboard + CPU Fingerprint) *'}
+                  </label>
+                  {hardwareId.trim() && (
+                    <span
+                      className={`text-[11px] font-medium flex items-center gap-1 ${
+                        hwidValidation.isValid
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-rose-600 dark:text-rose-400'
+                      }`}
+                    >
+                      {hwidValidation.isValid ? (
+                        <>
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>{language === 'ar' ? 'بصمة صالحة' : 'Valid HWID'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          <span>{language === 'ar' ? 'بصمة غير صالحة' : 'Invalid HWID'}</span>
+                        </>
+                      )}
+                    </span>
+                  )}
+                </div>
                 <div className="relative">
                   <input
                     type="text"
@@ -282,7 +369,13 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
                     value={hardwareId}
                     onChange={(e) => setHardwareId(e.target.value)}
                     placeholder="BFEBFBFF000906EA-MB-X570-..."
-                    className="w-full pl-3 pr-10 py-2.5 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-mono text-xs focus:outline-amber-600 uppercase"
+                    className={`w-full pl-3 pr-10 py-2.5 rounded-xl border bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-mono text-xs focus:outline-none transition-colors uppercase ${
+                      hardwareId.trim()
+                        ? hwidValidation.isValid
+                          ? 'border-emerald-500 focus:ring-2 focus:ring-emerald-500/20'
+                          : 'border-rose-500 focus:ring-2 focus:ring-rose-500/20'
+                        : 'border-neutral-300 dark:border-neutral-700 focus:ring-2 focus:ring-amber-500/20'
+                    }`}
                   />
                   <button
                     type="button"
@@ -300,11 +393,23 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
                     <Copy className="w-4 h-4" />
                   </button>
                 </div>
-                <span className="text-[10px] text-neutral-500 dark:text-neutral-400">
-                  {language === 'ar'
-                    ? 'السيريال المستخرج سيعمل فقط على هذا الجهاز بشكل حصري ولا يمكن تشغيله على جهاز آخر.'
-                    : 'The generated key will be strictly tied to this hardware signature.'}
-                </span>
+                {hardwareId.trim() ? (
+                  <p
+                    className={`text-[11px] mt-1.5 flex items-center gap-1.5 ${
+                      hwidValidation.isValid
+                        ? 'text-emerald-700 dark:text-emerald-300'
+                        : 'text-rose-600 dark:text-rose-400'
+                    }`}
+                  >
+                    <span>{language === 'ar' ? hwidValidation.messageAr : hwidValidation.messageEn}</span>
+                  </p>
+                ) : (
+                  <span className="text-[10px] text-neutral-500 dark:text-neutral-400 block mt-1">
+                    {language === 'ar'
+                      ? 'السيريال المستخرج سيعمل فقط على هذا الجهاز بشكل حصري ولا يمكن تشغيله على جهاز آخر.'
+                      : 'The generated key will be strictly tied to this hardware signature.'}
+                  </span>
+                )}
               </div>
 
               {/* License Mode Selection: Trial vs Paid */}
@@ -387,8 +492,8 @@ export const LicenseActivationPage: React.FC<LicenseActivationPageProps> = ({
 
               <button
                 type="submit"
-                disabled={submitting}
-                className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 text-white font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-sm transition-all active:scale-98 disabled:opacity-50"
+                disabled={submitting || !hwidValidation.isValid}
+                className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 text-white font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-sm transition-all active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-4 h-4" />
                 <span>{submitting ? (language === 'ar' ? 'جاري الإرسال...' : 'Submitting...') : (language === 'ar' ? 'إرسال طلب استخراج السيريال' : 'Submit Activation Request')}</span>

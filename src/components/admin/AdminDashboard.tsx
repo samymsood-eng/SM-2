@@ -48,7 +48,9 @@ import {
   BellRing,
   Image as ImageIcon,
   Loader2,
+  Clock,
 } from 'lucide-react';
+import { calculateExpirationDate } from '../pages/LicenseActivationPage';
 import { compressImageFile } from '../../utils/imageCompressor';
 import { generateSitemapXml, generateRobotsTxt } from '../../lib/sitemapGenerator';
 import {
@@ -87,6 +89,59 @@ interface AdminDashboardProps {
   onDeleteLicenseRequest?: (id: string) => void;
 }
 
+export function getLicenseExpiryDetails(req: LicenseRequest, language: Language) {
+  if (req.duration === 'lifetime' || req.licenseType === 'lifetime') {
+    return {
+      statusText: language === 'ar' ? 'مدى الحياة (دائم)' : 'Lifetime (Perpetual)',
+      badgeClass: 'bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800',
+      daysLeft: Infinity,
+      isExpired: false,
+      isExpiringSoon: false,
+    };
+  }
+  if (!req.expiresAt) {
+    return {
+      statusText: language === 'ar' ? 'غير محدد' : 'Not set',
+      badgeClass: 'bg-neutral-100 text-neutral-700 dark:bg-neutral-800 dark:text-neutral-300 border border-neutral-200 dark:border-neutral-700',
+      daysLeft: null,
+      isExpired: false,
+      isExpiringSoon: false,
+    };
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const expiry = new Date(req.expiresAt);
+  expiry.setHours(0, 0, 0, 0);
+  const diffTime = expiry.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays < 0) {
+    return {
+      statusText: language === 'ar' ? `منتهي منذ ${Math.abs(diffDays)} يوم` : `Expired ${Math.abs(diffDays)}d ago`,
+      badgeClass: 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200 dark:border-rose-800',
+      daysLeft: diffDays,
+      isExpired: true,
+      isExpiringSoon: false,
+    };
+  }
+  if (diffDays <= 30) {
+    return {
+      statusText: language === 'ar' ? `يوشك على الانتهاء (باقي ${diffDays} يوم)` : `Expiring soon (${diffDays}d left)`,
+      badgeClass: 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 animate-pulse',
+      daysLeft: diffDays,
+      isExpired: false,
+      isExpiringSoon: true,
+    };
+  }
+  return {
+    statusText: language === 'ar' ? `ساري (باقي ${diffDays} يوم)` : `Active (${diffDays}d left)`,
+    badgeClass: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800',
+    daysLeft: diffDays,
+    isExpired: false,
+    isExpiringSoon: false,
+  };
+}
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   currentUser,
   onLogin,
@@ -122,6 +177,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // License management action state
   const [selectedLicenseForAction, setSelectedLicenseForAction] = useState<LicenseRequest | null>(null);
   const [inputSerialKey, setInputSerialKey] = useState('');
+  const [inputExpiresAt, setInputExpiresAt] = useState('');
+  const [inputLicenseType, setInputLicenseType] = useState<'annual' | 'lifetime' | 'trial' | 'custom'>('annual');
+  const [licenseFilter, setLicenseFilter] = useState<'all' | 'active' | 'expiring_soon' | 'expired' | 'pending'>('all');
   const [copiedHwidId, setCopiedHwidId] = useState<string | null>(null);
 
   // SEO & Sitemap live generator state
@@ -811,13 +869,40 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
-              {/* Action Modal for Setting Serial Key */}
+              {/* Quick Filters */}
+              <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+                {[
+                  { id: 'all', label: language === 'ar' ? 'كافة الطلبات' : 'All Requests', count: licenseRequests.length },
+                  { id: 'pending', label: language === 'ar' ? 'بانتظار السيريال' : 'Pending', count: licenseRequests.filter((r) => r.status === 'pending').length },
+                  { id: 'active', label: language === 'ar' ? 'مفعلة بالسيريال' : 'Active', count: licenseRequests.filter((r) => r.status === 'active').length },
+                  { id: 'expiring_soon', label: language === 'ar' ? 'أوشكت على الانتهاء' : 'Expiring Soon (≤30d)', count: licenseRequests.filter((r) => getLicenseExpiryDetails(r, language).isExpiringSoon).length },
+                  { id: 'expired', label: language === 'ar' ? 'منتهية الصلاحية' : 'Expired', count: licenseRequests.filter((r) => getLicenseExpiryDetails(r, language).isExpired).length },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setLicenseFilter(f.id as any)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                      licenseFilter === f.id
+                        ? 'bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 shadow-sm'
+                        : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-700'
+                    }`}
+                  >
+                    <span>{f.label}</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${licenseFilter === f.id ? 'bg-white/20 text-white dark:bg-neutral-900/20 dark:text-neutral-900' : 'bg-neutral-200 dark:bg-neutral-700 text-neutral-700 dark:text-neutral-300'}`}>
+                      {f.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Action Modal for Setting Serial Key & Expiry */}
               {selectedLicenseForAction && (
                 <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-xs text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
                       <Key className="w-4 h-4 text-amber-600" />
-                      <span>{language === 'ar' ? `اعتماد ووضع السيريال للطلب: ${selectedLicenseForAction.id} (${selectedLicenseForAction.clientName})` : `Set Serial for ${selectedLicenseForAction.id}`}</span>
+                      <span>{language === 'ar' ? `اعتماد السيريال وتحديد الصلاحية: ${selectedLicenseForAction.id} (${selectedLicenseForAction.clientName})` : `Set Key & Expiry for ${selectedLicenseForAction.id}`}</span>
                     </span>
                     <button
                       type="button"
@@ -827,43 +912,136 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <X className="w-4 h-4" />
                     </button>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <input
-                      type="text"
-                      value={inputSerialKey}
-                      onChange={(e) => setInputSerialKey(e.target.value.toUpperCase())}
-                      placeholder="SM2-PRO-XXXX-XXXX-XXXX-2026"
-                      className="flex-1 px-3 py-2 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 font-mono text-xs font-bold uppercase focus:outline-amber-600"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!inputSerialKey.trim() || !onUpdateLicenseRequest) return;
-                        const updated: LicenseRequest = {
-                          ...selectedLicenseForAction,
-                          status: 'active',
-                          serialKey: inputSerialKey.trim(),
-                          activatedAt: new Date().toISOString().replace('T', ' ').substring(0, 16),
-                        };
-                        onUpdateLicenseRequest(updated);
 
-                        // Also notify Telegram if configured
-                        if (githubSettings?.enableTelegramNotifications && githubSettings?.telegramBotToken && githubSettings?.telegramChatId) {
-                          const msg = buildSerialActivatedTelegramMessage(updated);
-                          sendTelegramNotification(msg, {
-                            botToken: githubSettings.telegramBotToken,
-                            chatId: githubSettings.telegramChatId,
-                            enabled: githubSettings.enableTelegramNotifications,
-                          });
-                        }
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+                    {/* Serial Key */}
+                    <div className="sm:col-span-6">
+                      <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                        {language === 'ar' ? 'مفتاح التفعيل (Serial Key) *' : 'Serial Key *'}
+                      </label>
+                      <input
+                        type="text"
+                        value={inputSerialKey}
+                        onChange={(e) => setInputSerialKey(e.target.value.toUpperCase())}
+                        placeholder="SM2-PRO-XXXX-XXXX-XXXX-2026"
+                        className="w-full px-3 py-2 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 font-mono text-xs font-bold uppercase focus:outline-amber-600"
+                      />
+                    </div>
 
-                        setSelectedLicenseForAction(null);
-                        setInputSerialKey('');
-                      }}
-                      className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs transition-colors cursor-pointer"
-                    >
-                      {language === 'ar' ? 'اعتماد وحفظ السيريال' : 'Approve Key'}
-                    </button>
+                    {/* License Type */}
+                    <div className="sm:col-span-3">
+                      <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                        {language === 'ar' ? 'نوع الترخيص' : 'License Type'}
+                      </label>
+                      <select
+                        value={inputLicenseType}
+                        onChange={(e) => {
+                          const val = e.target.value as any;
+                          setInputLicenseType(val);
+                          if (val === 'lifetime') {
+                            setInputExpiresAt('');
+                          } else if (val === 'trial' && !inputExpiresAt) {
+                            const d = new Date(); d.setMonth(d.getMonth() + 1);
+                            setInputExpiresAt(d.toISOString().split('T')[0]);
+                          } else if (val === 'annual' && !inputExpiresAt) {
+                            const d = new Date(); d.setFullYear(d.getFullYear() + 1);
+                            setInputExpiresAt(d.toISOString().split('T')[0]);
+                          }
+                        }}
+                        className="w-full px-2.5 py-2 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-xs font-medium"
+                      >
+                        <option value="annual">{language === 'ar' ? 'سنوي (1 سنة)' : 'Annual'}</option>
+                        <option value="lifetime">{language === 'ar' ? 'مدى الحياة (دائم)' : 'Lifetime'}</option>
+                        <option value="trial">{language === 'ar' ? 'تجريبي (شهر)' : 'Trial'}</option>
+                        <option value="custom">{language === 'ar' ? 'تاريخ مخصص' : 'Custom'}</option>
+                      </select>
+                    </div>
+
+                    {/* Expiry Date */}
+                    <div className="sm:col-span-3">
+                      <label className="block text-[11px] font-semibold text-neutral-700 dark:text-neutral-300 mb-1">
+                        {language === 'ar' ? 'تاريخ الانتهاء' : 'Expiry Date'}
+                      </label>
+                      <input
+                        type="date"
+                        disabled={inputLicenseType === 'lifetime'}
+                        value={inputExpiresAt}
+                        onChange={(e) => setInputExpiresAt(e.target.value)}
+                        className="w-full px-2.5 py-2 rounded-xl border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-900 text-xs disabled:opacity-40"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <div className="flex items-center gap-1.5 text-[11px] text-neutral-500">
+                      {inputLicenseType !== 'lifetime' && (
+                        <>
+                          <span className="text-[10px]">{language === 'ar' ? 'ضبط سريع:' : 'Quick:'}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const d = new Date(); d.setFullYear(d.getFullYear() + 1);
+                              setInputExpiresAt(d.toISOString().split('T')[0]);
+                            }}
+                            className="px-2 py-0.5 rounded bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-[10px] hover:bg-neutral-100 cursor-pointer"
+                          >
+                            +1 {language === 'ar' ? 'سنة' : 'Year'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const d = new Date(); d.setMonth(d.getMonth() + 6);
+                              setInputExpiresAt(d.toISOString().split('T')[0]);
+                            }}
+                            className="px-2 py-0.5 rounded bg-white dark:bg-neutral-800 border border-neutral-300 dark:border-neutral-700 text-[10px] hover:bg-neutral-100 cursor-pointer"
+                          >
+                            +6 {language === 'ar' ? 'أشهر' : 'Months'}
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedLicenseForAction(null)}
+                        className="px-3 py-1.5 rounded-xl border border-neutral-300 dark:border-neutral-700 text-xs text-neutral-600 hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
+                      >
+                        {t.common.cancel}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!inputSerialKey.trim() || !onUpdateLicenseRequest) return;
+                          const updated: LicenseRequest = {
+                            ...selectedLicenseForAction,
+                            status: 'active',
+                            serialKey: inputSerialKey.trim(),
+                            licenseType: inputLicenseType,
+                            expiresAt: inputLicenseType === 'lifetime' ? undefined : (inputExpiresAt || undefined),
+                            activatedAt: selectedLicenseForAction.activatedAt || new Date().toISOString().replace('T', ' ').substring(0, 16),
+                          };
+                          onUpdateLicenseRequest(updated);
+
+                          // Also notify Telegram if configured
+                          if (githubSettings?.enableTelegramNotifications && githubSettings?.telegramBotToken && githubSettings?.telegramChatId) {
+                            const msg = buildSerialActivatedTelegramMessage(updated);
+                            sendTelegramNotification(msg, {
+                              botToken: githubSettings.telegramBotToken,
+                              chatId: githubSettings.telegramChatId,
+                              enabled: githubSettings.enableTelegramNotifications,
+                            });
+                          }
+
+                          setSelectedLicenseForAction(null);
+                          setInputSerialKey('');
+                          setInputExpiresAt('');
+                        }}
+                        className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs transition-colors cursor-pointer"
+                      >
+                        {language === 'ar' ? 'اعتماد وحفظ السيريال والصلاحية' : 'Approve Key & Expiry'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -878,148 +1056,202 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       <th className="p-3 text-start">{language === 'ar' ? 'البرنامج والمدة' : 'Product & Plan'}</th>
                       <th className="p-3 text-start">{language === 'ar' ? 'بصمة الجهاز (HWID)' : 'Machine ID (HWID)'}</th>
                       <th className="p-3 text-start">{language === 'ar' ? 'الحالة والسيريال' : 'Status & Serial'}</th>
+                      <th className="p-3 text-start">{language === 'ar' ? 'الصلاحية والانتهاء' : 'Validity & Expiry'}</th>
                       <th className="p-3 text-end">{language === 'ar' ? 'إجراءات التسليم' : 'Actions'}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
-                    {licenseRequests.length === 0 ? (
+                    {licenseRequests.filter((req) => {
+                      if (licenseFilter === 'all') return true;
+                      if (licenseFilter === 'pending') return req.status === 'pending';
+                      if (licenseFilter === 'active') return req.status === 'active';
+                      const details = getLicenseExpiryDetails(req, language);
+                      if (licenseFilter === 'expiring_soon') return details.isExpiringSoon;
+                      if (licenseFilter === 'expired') return details.isExpired;
+                      return true;
+                    }).length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-neutral-400">
-                          {language === 'ar' ? 'لا توجد طلبات تراخيص حتى الآن.' : 'No license requests found.'}
+                        <td colSpan={7} className="p-8 text-center text-neutral-400">
+                          {language === 'ar' ? 'لا توجد طلبات تراخيص مطابقة للفلتر المحدد.' : 'No matching license requests found.'}
                         </td>
                       </tr>
                     ) : (
-                      licenseRequests.map((req) => (
-                        <tr key={req.id} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40 transition-colors">
-                          <td className="p-3 font-mono font-bold text-neutral-900 dark:text-neutral-100">
-                            <div>{req.id}</div>
-                            <span className="text-[10px] text-neutral-400 font-normal">{req.createdAt}</span>
-                          </td>
-                          <td className="p-3">
-                            <div className="font-semibold text-neutral-900 dark:text-neutral-100">{req.clientName}</div>
-                            <div className="text-[11px] text-neutral-500">{req.clientEmail}</div>
-                            {req.clientPhone && (
-                              <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">{req.clientPhone}</div>
-                            )}
-                          </td>
-                          <td className="p-3">
-                            <div className="font-medium text-neutral-800 dark:text-neutral-200">{req.productName}</div>
-                            <div className="text-[10px] text-neutral-500 font-mono">
-                              {req.duration === 'trial_1m'
-                                ? (language === 'ar' ? 'فترة تجريبية (شهر)' : 'Trial 1M')
-                                : req.duration === 'lifetime'
-                                ? (language === 'ar' ? 'مدى الحياة (دائم)' : 'Lifetime')
-                                : req.duration === 'sub_1y'
-                                ? (language === 'ar' ? 'اشتراك سنة' : '1 Year')
-                                : (language === 'ar' ? 'اشتراك 6 أشهر' : '6 Months')}
-                            </div>
-                            {req.paymentReference && (
-                              <div className="text-[10px] text-amber-700 dark:text-amber-400 font-mono">
-                                💳 {req.paymentReference}
-                              </div>
-                            )}
-                          </td>
-                          <td className="p-3">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono text-[11px] bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded text-neutral-700 dark:text-neutral-300 max-w-[170px] truncate">
-                                {req.hardwareId}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(req.hardwareId);
-                                  setCopiedHwidId(req.id);
-                                  setTimeout(() => setCopiedHwidId(null), 2000);
-                                }}
-                                title={language === 'ar' ? 'نسخ البصمة لأداتك' : 'Copy HWID'}
-                                className="p-1 hover:text-amber-600 text-neutral-400 cursor-pointer"
-                              >
-                                {copiedHwidId === req.id ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                              </button>
-                            </div>
-                          </td>
-                          <td className="p-3">
-                            <div className="space-y-1">
-                              <span
-                                className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                                  req.status === 'active'
-                                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                    : req.status === 'pending'
-                                    ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
-                                    : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
-                                }`}
-                              >
-                                {req.status === 'active'
-                                  ? (language === 'ar' ? 'مفعل بالسيريال' : 'Active')
-                                  : req.status === 'pending'
-                                  ? (language === 'ar' ? 'قيد المراجعة' : 'Pending')
-                                  : (language === 'ar' ? 'مرفوض' : 'Rejected')}
-                              </span>
-                              {req.serialKey && (
-                                <div className="font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-400 max-w-[180px] truncate">
-                                  {req.serialKey}
+                      licenseRequests
+                        .filter((req) => {
+                          if (licenseFilter === 'all') return true;
+                          if (licenseFilter === 'pending') return req.status === 'pending';
+                          if (licenseFilter === 'active') return req.status === 'active';
+                          const details = getLicenseExpiryDetails(req, language);
+                          if (licenseFilter === 'expiring_soon') return details.isExpiringSoon;
+                          if (licenseFilter === 'expired') return details.isExpired;
+                          return true;
+                        })
+                        .map((req) => {
+                          const expiryDetails = getLicenseExpiryDetails(req, language);
+                          return (
+                            <tr key={req.id} className="hover:bg-neutral-50/50 dark:hover:bg-neutral-800/40 transition-colors">
+                              <td className="p-3 font-mono font-bold text-neutral-900 dark:text-neutral-100">
+                                <div>{req.id}</div>
+                                <span className="text-[10px] text-neutral-400 font-normal">{req.createdAt}</span>
+                              </td>
+                              <td className="p-3">
+                                <div className="font-semibold text-neutral-900 dark:text-neutral-100">{req.clientName}</div>
+                                <div className="text-[11px] text-neutral-500">{req.clientEmail}</div>
+                                {req.clientPhone && (
+                                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono">{req.clientPhone}</div>
+                                )}
+                              </td>
+                              <td className="p-3">
+                                <div className="font-medium text-neutral-800 dark:text-neutral-200">{req.productName}</div>
+                                <div className="text-[10px] text-neutral-500 font-mono">
+                                  {req.duration === 'trial_1m'
+                                    ? (language === 'ar' ? 'فترة تجريبية (شهر)' : 'Trial 1M')
+                                    : req.duration === 'lifetime'
+                                    ? (language === 'ar' ? 'مدى الحياة (دائم)' : 'Lifetime')
+                                    : req.duration === 'sub_1y'
+                                    ? (language === 'ar' ? 'اشتراك سنة' : '1 Year')
+                                    : (language === 'ar' ? 'اشتراك 6 أشهر' : '6 Months')}
                                 </div>
-                              )}
-                            </div>
-                          </td>
-                          <td className="p-3 text-end">
-                            <div className="flex items-center justify-end gap-1.5">
-                              {/* Set Key button */}
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedLicenseForAction(req);
-                                  setInputSerialKey(req.serialKey || '');
-                                }}
-                                className="px-2.5 py-1 rounded bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 font-semibold hover:bg-neutral-800 text-[11px] transition-colors cursor-pointer"
-                              >
-                                {req.serialKey ? (language === 'ar' ? 'تعديل السيريال' : 'Edit Key') : (language === 'ar' ? 'وضع السيريال' : 'Set Key')}
-                              </button>
+                                {req.paymentReference && (
+                                  <div className="text-[10px] text-amber-700 dark:text-amber-400 font-mono">
+                                    💳 {req.paymentReference}
+                                  </div>
+                                )}
+                              </td>
+                              <td className="p-3">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono text-[11px] bg-neutral-100 dark:bg-neutral-800 px-2 py-0.5 rounded text-neutral-700 dark:text-neutral-300 max-w-[170px] truncate">
+                                    {req.hardwareId}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(req.hardwareId);
+                                      setCopiedHwidId(req.id);
+                                      setTimeout(() => setCopiedHwidId(null), 2000);
+                                    }}
+                                    title={language === 'ar' ? 'نسخ البصمة لأداتك' : 'Copy HWID'}
+                                    className="p-1 hover:text-amber-600 text-neutral-400 cursor-pointer"
+                                  >
+                                    {copiedHwidId === req.id ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="p-3">
+                                <div className="space-y-1">
+                                  <span
+                                    className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                                      req.status === 'active'
+                                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                        : req.status === 'pending'
+                                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300'
+                                        : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
+                                    }`}
+                                  >
+                                    {req.status === 'active'
+                                      ? (language === 'ar' ? 'مفعل بالسيريال' : 'Active')
+                                      : req.status === 'pending'
+                                      ? (language === 'ar' ? 'قيد المراجعة' : 'Pending')
+                                      : (language === 'ar' ? 'مرفوض' : 'Rejected')}
+                                  </span>
+                                  {req.serialKey && (
+                                    <div className="font-mono text-[11px] font-bold text-emerald-700 dark:text-emerald-400 max-w-[180px] truncate">
+                                      {req.serialKey}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
 
-                              {/* WhatsApp Dispatch */}
-                              {req.clientPhone && (
-                                <a
-                                  href={`https://wa.me/${req.clientPhone.replace(/\D/g, '')}?text=${encodeURIComponent(
-                                    `مرحباً ${req.clientName}،\nيسرنا تزويدكم بسيريال تفعيل برنامج ${req.productName} المعتمد لجهازكم:\n\nكود التفعيل: ${req.serialKey || 'قيد الاستخراج'}\nبصمة الجهاز المسجلة: ${req.hardwareId}\n\nشكراً لثقتكم بـ SM+2.`
-                                  )}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  title={language === 'ar' ? 'إرسال السيريال عبر واتساب' : 'WhatsApp'}
-                                  className="p-1.5 rounded bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/20 transition-colors"
-                                >
-                                  <MessageCircle className="w-3.5 h-3.5" />
-                                </a>
-                              )}
+                              {/* Validity & Expiry Column */}
+                              <td className="p-3">
+                                <div className="space-y-1">
+                                  <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold ${expiryDetails.badgeClass}`}>
+                                    {expiryDetails.statusText}
+                                  </span>
+                                  {req.expiresAt && (
+                                    <div className="text-[10px] font-mono text-neutral-500">
+                                      {req.expiresAt}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
 
-                              {/* Email Dispatch */}
-                              <a
-                                href={`mailto:${req.clientEmail}?subject=${encodeURIComponent(`سيريال تفعيل ${req.productName} - SM+2`)}&body=${encodeURIComponent(
-                                  `مرحباً ${req.clientName}،\n\nنرفق لك سيريال التفعيل المخصص لحاسوبك:\n\nالبرنامج: ${req.productName}\nالسيريال: ${req.serialKey || ''}\nبصمة الجهاز: ${req.hardwareId}\n\nتحياتنا،\nفريق SM+2`
-                                )}`}
-                                title={language === 'ar' ? 'إرسال بالبريد' : 'Email'}
-                                className="p-1.5 rounded bg-blue-600/10 text-blue-700 hover:bg-blue-600/20 transition-colors"
-                              >
-                                <Mail className="w-3.5 h-3.5" />
-                              </a>
+                              <td className="p-3 text-end">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {/* Set Key button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedLicenseForAction(req);
+                                      setInputSerialKey(req.serialKey || '');
+                                      setInputExpiresAt(req.expiresAt || '');
+                                      setInputLicenseType(req.licenseType || (req.duration === 'lifetime' ? 'lifetime' : 'annual'));
+                                    }}
+                                    className="px-2.5 py-1 rounded bg-neutral-900 text-white dark:bg-neutral-100 dark:text-neutral-900 font-semibold hover:bg-neutral-800 text-[11px] transition-colors cursor-pointer"
+                                  >
+                                    {req.serialKey ? (language === 'ar' ? 'تعديل السيريال' : 'Edit Key') : (language === 'ar' ? 'وضع السيريال' : 'Set Key')}
+                                  </button>
 
-                              {/* Delete */}
-                              {onDeleteLicenseRequest && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (confirm(language === 'ar' ? 'هل تريد حذف هذا الطلب؟' : 'Delete request?')) {
-                                      onDeleteLicenseRequest(req.id);
-                                    }
-                                  }}
-                                  className="p-1.5 text-neutral-400 hover:text-red-600 transition-colors cursor-pointer"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+                                  {/* Renewal WhatsApp Reminder if expiring soon or expired */}
+                                  {req.clientPhone && (expiryDetails.isExpiringSoon || expiryDetails.isExpired) && (
+                                    <a
+                                      href={`https://wa.me/${req.clientPhone.replace(/\D/g, '')}?text=${encodeURIComponent(
+                                        `مرحباً ${req.clientName}،\nنود إحاطتكم علماً بأن ترخيص برنامج ${req.productName} ${expiryDetails.isExpired ? 'انتهت صلاحيته' : 'أوشك على الانتهاء'} (تاريخ الانتهاء: ${req.expiresAt || 'قريباً'}).\n\nلتجديد الترخيص ومواصلة التحديثات والدعم الفني المعتمد لمنظومة SM+2، يسعدنا تواصلكم لتجديد الاشتراك.\n\nمع التحية،\nإدارة منظومة SM+2`
+                                      )}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title={language === 'ar' ? 'إرسال تذكير تجديد الترخيص عبر واتساب' : 'Send Renewal Reminder'}
+                                      className="p-1.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
+                                    >
+                                      <Clock className="w-3.5 h-3.5" />
+                                    </a>
+                                  )}
+
+                                  {/* WhatsApp Dispatch */}
+                                  {req.clientPhone && (
+                                    <a
+                                      href={`https://wa.me/${req.clientPhone.replace(/\D/g, '')}?text=${encodeURIComponent(
+                                        `مرحباً ${req.clientName}،\nيسرنا تزويدكم بسيريال تفعيل برنامج ${req.productName} المعتمد لجهازكم:\n\nكود التفعيل: ${req.serialKey || 'قيد الاستخراج'}\nبصمة الجهاز المسجلة: ${req.hardwareId}\n\nشكراً لثقتكم بـ SM+2.`
+                                      )}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title={language === 'ar' ? 'إرسال السيريال عبر واتساب' : 'WhatsApp'}
+                                      className="p-1.5 rounded bg-emerald-600/10 text-emerald-700 hover:bg-emerald-600/20 transition-colors"
+                                    >
+                                      <MessageCircle className="w-3.5 h-3.5" />
+                                    </a>
+                                  )}
+
+                                  {/* Email Dispatch */}
+                                  <a
+                                    href={`mailto:${req.clientEmail}?subject=${encodeURIComponent(`سيريال تفعيل ${req.productName} - SM+2`)}&body=${encodeURIComponent(
+                                      `مرحباً ${req.clientName}،\n\nنرفق لك سيريال التفعيل المخصص لحاسوبك:\n\nالبرنامج: ${req.productName}\nالسيريال: ${req.serialKey || ''}\nبصمة الجهاز: ${req.hardwareId}\n\nتحياتنا،\nفريق SM+2`
+                                    )}`}
+                                    title={language === 'ar' ? 'إرسال بالبريد' : 'Email'}
+                                    className="p-1.5 rounded bg-blue-600/10 text-blue-700 hover:bg-blue-600/20 transition-colors"
+                                  >
+                                    <Mail className="w-3.5 h-3.5" />
+                                  </a>
+
+                                  {/* Delete */}
+                                  {onDeleteLicenseRequest && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (confirm(language === 'ar' ? 'هل تريد حذف هذا الطلب؟' : 'Delete request?')) {
+                                          onDeleteLicenseRequest(req.id);
+                                        }
+                                      }}
+                                      className="p-1.5 text-neutral-400 hover:text-red-600 transition-colors cursor-pointer"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
                     )}
                   </tbody>
                 </table>
@@ -3001,6 +3233,10 @@ jobs:
                 if (!manualLicense.clientName?.trim() || !manualLicense.hardwareId?.trim()) return;
 
                 const hasSerial = Boolean(manualLicense.serialKey?.trim());
+                const effectiveDur = manualLicense.duration || 'trial_1m';
+                const effectiveType = manualLicense.licenseType || (effectiveDur === 'lifetime' ? 'lifetime' : 'annual');
+                const effectiveExpiry = manualLicense.expiresAt || (effectiveDur === 'lifetime' ? undefined : calculateExpirationDate(effectiveDur));
+
                 const newReq: LicenseRequest = {
                   id: manualLicense.id || `LIC-${Math.floor(10000 + Math.random() * 90000)}`,
                   clientName: manualLicense.clientName.trim(),
@@ -3008,7 +3244,9 @@ jobs:
                   clientPhone: manualLicense.clientPhone?.trim() || '',
                   productName: manualLicense.productName || products[0]?.name || 'محرك واستوديو SM+2 الأساسي',
                   hardwareId: manualLicense.hardwareId.trim().toUpperCase(),
-                  duration: manualLicense.duration || 'trial_1m',
+                  duration: effectiveDur,
+                  licenseType: effectiveType,
+                  expiresAt: effectiveExpiry,
                   paymentReference: manualLicense.paymentReference?.trim(),
                   status: hasSerial ? 'active' : (manualLicense.status || 'pending'),
                   serialKey: manualLicense.serialKey?.trim() || undefined,
@@ -3064,7 +3302,7 @@ jobs:
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-medium mb-1">{language === 'ar' ? 'البرنامج المراد ترخيصه' : 'Target Product'}</label>
                   <select
@@ -3083,7 +3321,16 @@ jobs:
                   <label className="block font-medium mb-1">{language === 'ar' ? 'مدة وخطة الترخيص' : 'Plan / Duration'}</label>
                   <select
                     value={manualLicense.duration || 'trial_1m'}
-                    onChange={(e) => setManualLicense({ ...manualLicense, duration: e.target.value as any })}
+                    onChange={(e) => {
+                      const dur = e.target.value as any;
+                      const calculated = calculateExpirationDate(dur);
+                      setManualLicense({
+                        ...manualLicense,
+                        duration: dur,
+                        expiresAt: calculated,
+                        licenseType: dur === 'lifetime' ? 'lifetime' : (dur === 'trial_1m' ? 'trial' : 'annual'),
+                      });
+                    }}
                     className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100"
                   >
                     <option value="trial_1m">{language === 'ar' ? 'فترة تجريبية (شهر)' : 'Trial 1 Month'}</option>
@@ -3091,6 +3338,16 @@ jobs:
                     <option value="sub_1y">{language === 'ar' ? 'اشتراك سنوي (سنة)' : '1 Year Subscription'}</option>
                     <option value="lifetime">{language === 'ar' ? 'ترخيص دائم (مدى الحياة)' : 'Lifetime Permanent'}</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block font-medium mb-1">{language === 'ar' ? 'تاريخ الانتهاء' : 'Expiry Date'}</label>
+                  <input
+                    type="date"
+                    disabled={manualLicense.duration === 'lifetime'}
+                    value={manualLicense.expiresAt || ''}
+                    onChange={(e) => setManualLicense({ ...manualLicense, expiresAt: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 disabled:opacity-40"
+                  />
                 </div>
               </div>
 
