@@ -340,7 +340,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     // Verify password against user password or initial fallback credentials
     const expectedPassword = user.password || (user.role === 'super_admin' ? 'SM2@Admin2026' : 'SM2@Editor2026');
-    if (loginPassword !== expectedPassword && loginPassword !== 'admin123') {
+    if (loginPassword !== expectedPassword) {
       setLoginError(
         language === 'ar'
           ? 'كلمة المرور غير صحيحة، يرجى التحقق والمحاولة مجدداً'

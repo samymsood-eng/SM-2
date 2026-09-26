@@ -347,7 +347,11 @@ export default function App() {
 
   const handleAddChangelog = (entry: ChangelogEntry) => {
     saveChangelogToCloud(entry);
-    setChangelogs((prev) => [entry, ...prev]);
+    setChangelogs((prev) => {
+      const updated = [entry, ...prev];
+      localStorage.setItem('sm2_changelogs', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const handleUpdateProducts = (newProducts: Product[]) => {
@@ -361,6 +365,7 @@ export default function App() {
       saveProductToCloud(p);
     });
     setProducts(newProducts);
+    localStorage.setItem('sm2_products', JSON.stringify(newProducts));
   };
 
   const handleToggleNotifications = async () => {
@@ -407,6 +412,7 @@ export default function App() {
     }
 
     setDownloads(newDownloads);
+    localStorage.setItem('sm2_downloads', JSON.stringify(newDownloads));
   };
 
   const handleUpdateDocs = (newDocs: DocSection[]) => {
@@ -420,6 +426,7 @@ export default function App() {
       saveDocToCloud(d);
     });
     setDocs(newDocs);
+    localStorage.setItem('sm2_docs', JSON.stringify(newDocs));
   };
 
   const handleUpdateUsers = (newUsers: AdminUser[]) => {

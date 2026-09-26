@@ -39,17 +39,27 @@ export function subscribeProducts(onUpdate: (products: Product[]) => void) {
     colRef,
     async (snapshot) => {
       if (snapshot.empty) {
-        // Seed initial products to Firestore
+        // Protect local products: check localStorage first!
+        const saved = localStorage.getItem('sm2_products');
+        let itemsToUse = initialProducts;
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              itemsToUse = parsed;
+            }
+          } catch {}
+        }
         try {
           const batch = writeBatch(db);
-          for (const item of initialProducts) {
+          for (const item of itemsToUse) {
             batch.set(doc(db, 'products', item.id), item);
           }
           await batch.commit();
         } catch (err) {
           console.warn('Firestore initial products seed skipped or offline:', err);
         }
-        onUpdate(initialProducts);
+        onUpdate(itemsToUse);
       } else {
         const items: Product[] = [];
         snapshot.forEach((d) => items.push(d.data() as Product));
@@ -74,16 +84,27 @@ export function subscribeDownloads(onUpdate: (downloads: DownloadFile[]) => void
     colRef,
     async (snapshot) => {
       if (snapshot.empty) {
+        // Protect local downloads: check localStorage first!
+        const saved = localStorage.getItem('sm2_downloads');
+        let itemsToUse = initialDownloads;
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              itemsToUse = parsed;
+            }
+          } catch {}
+        }
         try {
           const batch = writeBatch(db);
-          for (const item of initialDownloads) {
+          for (const item of itemsToUse) {
             batch.set(doc(db, 'downloads', item.id), item);
           }
           await batch.commit();
         } catch (err) {
           console.warn('Firestore downloads seed skipped:', err);
         }
-        onUpdate(initialDownloads);
+        onUpdate(itemsToUse);
       } else {
         const items: DownloadFile[] = [];
         snapshot.forEach((d) => items.push(d.data() as DownloadFile));
@@ -108,16 +129,26 @@ export function subscribeChangelogs(onUpdate: (changelogs: ChangelogEntry[]) => 
     colRef,
     async (snapshot) => {
       if (snapshot.empty) {
+        const saved = localStorage.getItem('sm2_changelogs');
+        let itemsToUse = initialChangelogs;
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              itemsToUse = parsed;
+            }
+          } catch {}
+        }
         try {
           const batch = writeBatch(db);
-          for (const item of initialChangelogs) {
+          for (const item of itemsToUse) {
             batch.set(doc(db, 'changelogs', item.id), item);
           }
           await batch.commit();
         } catch (err) {
           console.warn('Firestore changelogs seed skipped:', err);
         }
-        onUpdate(initialChangelogs);
+        onUpdate(itemsToUse);
       } else {
         const items: ChangelogEntry[] = [];
         snapshot.forEach((d) => items.push(d.data() as ChangelogEntry));
@@ -144,16 +175,26 @@ export function subscribeDocs(onUpdate: (docs: DocSection[]) => void) {
     colRef,
     async (snapshot) => {
       if (snapshot.empty) {
+        const saved = localStorage.getItem('sm2_docs');
+        let itemsToUse = initialDocs;
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              itemsToUse = parsed;
+            }
+          } catch {}
+        }
         try {
           const batch = writeBatch(db);
-          for (const item of initialDocs) {
+          for (const item of itemsToUse) {
             batch.set(doc(db, 'docs', item.id), item);
           }
           await batch.commit();
         } catch (err) {
           console.warn('Firestore docs seed skipped:', err);
         }
-        onUpdate(initialDocs);
+        onUpdate(itemsToUse);
       } else {
         const items: DocSection[] = [];
         snapshot.forEach((d) => items.push(d.data() as DocSection));
@@ -437,16 +478,26 @@ export function subscribeLicenseRequests(onUpdate: (requests: LicenseRequest[]) 
     colRef,
     async (snapshot) => {
       if (snapshot.empty) {
+        const saved = localStorage.getItem('sm2_licenses');
+        let itemsToUse = initialLicenseRequests;
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              itemsToUse = parsed;
+            }
+          } catch {}
+        }
         try {
           const batch = writeBatch(db);
-          for (const item of initialLicenseRequests) {
+          for (const item of itemsToUse) {
             batch.set(doc(db, 'licenses', item.id), item);
           }
           await batch.commit();
         } catch (err) {
           console.warn('Firestore initial licenses seed skipped:', err);
         }
-        onUpdate(initialLicenseRequests);
+        onUpdate(itemsToUse);
       } else {
         const items: LicenseRequest[] = [];
         snapshot.forEach((d) => items.push(d.data() as LicenseRequest));
