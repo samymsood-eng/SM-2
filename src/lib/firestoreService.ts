@@ -179,32 +179,54 @@ export function subscribeAdminUsers(onUpdate: (users: AdminUser[]) => void) {
     colRef,
     async (snapshot) => {
       if (snapshot.empty) {
+        // Check if we already have custom admin users saved in localStorage first!
+        const saved = localStorage.getItem('sm2_admin_users');
+        let usersToSeed = initialAdminUsers;
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              usersToSeed = parsed;
+            }
+          } catch {
+            usersToSeed = initialAdminUsers;
+          }
+        }
         try {
           const batch = writeBatch(db);
-          for (const item of initialAdminUsers) {
+          for (const item of usersToSeed) {
             batch.set(doc(db, 'adminUsers', item.id), item);
           }
           await batch.commit();
         } catch (err) {
-          console.warn('Firestore admin users seed skipped:', err);
+          console.warn('Firestore admin users seed skipped or offline:', err);
         }
-        onUpdate(initialAdminUsers);
+        onUpdate(usersToSeed);
       } else {
         const items: AdminUser[] = [];
+        // Read local storage to preserve custom passwords if Firestore doc omits it
+        const saved = localStorage.getItem('sm2_admin_users');
+        let localUsers: AdminUser[] = [];
+        if (saved) {
+          try {
+            localUsers = JSON.parse(saved);
+          } catch {}
+        }
+
         snapshot.forEach((d) => {
           const u = d.data() as AdminUser;
-          if (!u.password) {
-            const init = initialAdminUsers.find((i) => i.id === u.id || i.email === u.email);
-            items.push({ ...u, password: init?.password || 'SM2@Admin2026' });
-          } else {
-            items.push(u);
-          }
+          const localMatch = localUsers.find((i) => i.id === u.id || i.email.toLowerCase() === u.email.toLowerCase());
+          const initMatch = initialAdminUsers.find((i) => i.id === u.id || i.email.toLowerCase() === u.email.toLowerCase());
+
+          // Use the password from Firestore, or from local storage, or fallback to default
+          const resolvedPassword = u.password || localMatch?.password || initMatch?.password || 'SM2@Admin2026';
+          items.push({ ...u, password: resolvedPassword });
         });
         onUpdate(items);
       }
     },
     (error) => {
-      console.warn('Firestore admin users listener error:', error);
+      console.warn('Firestore admin users listener error, using resilient local storage:', error);
       const saved = localStorage.getItem('sm2_admin_users');
       onUpdate(saved ? JSON.parse(saved) : initialAdminUsers);
     }
@@ -372,6 +394,14 @@ export async function saveAdminUserToCloud(user: AdminUser): Promise<void> {
     await setDoc(doc(db, 'adminUsers', user.id), user);
   } catch (err) {
     console.error('Error saving admin user to Firestore:', err);
+  }
+}
+
+export async function deleteAdminUserFromCloud(userId: string): Promise<void> {
+  try {
+    await deleteDoc(doc(db, 'adminUsers', userId));
+  } catch (err) {
+    console.error('Error deleting admin user from Firestore:', err);
   }
 }
 

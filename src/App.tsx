@@ -48,6 +48,7 @@ import {
   saveDocToCloud,
   deleteDocFromCloud,
   saveAdminUserToCloud,
+  deleteAdminUserFromCloud,
   saveSubscriberToCloud,
   saveTicketToCloud,
   saveGitHubSettingsToCloud,
@@ -422,10 +423,32 @@ export default function App() {
   };
 
   const handleUpdateUsers = (newUsers: AdminUser[]) => {
+    // Delete users that were removed
+    adminUsers.forEach((oldUser) => {
+      if (!newUsers.some((u) => u.id === oldUser.id)) {
+        deleteAdminUserFromCloud(oldUser.id);
+      }
+    });
+
+    // Save added or updated users to cloud
     newUsers.forEach((u) => {
       saveAdminUserToCloud(u);
     });
+
+    // Update state and immediately persist to localStorage
     setAdminUsers(newUsers);
+    localStorage.setItem('sm2_admin_users', JSON.stringify(newUsers));
+
+    // Update currentUser if the active supervisor updated their own password or profile
+    if (currentUser) {
+      const updatedCurrent = newUsers.find(
+        (u) => u.id === currentUser.id || u.email.toLowerCase() === currentUser.email.toLowerCase()
+      );
+      if (updatedCurrent) {
+        setCurrentUser(updatedCurrent);
+        localStorage.setItem('sm2_current_admin', JSON.stringify(updatedCurrent));
+      }
+    }
   };
 
   const handleUpdateGithubSettings = (newSettings: GitHubSettings) => {

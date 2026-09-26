@@ -219,6 +219,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Users modal/editor state
   const [editingUser, setEditingUser] = useState<Partial<AdminUser> | null>(null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [userSaveSuccess, setUserSaveSuccess] = useState<string | null>(null);
 
   // Manual license creation modal state
   const [manualLicense, setManualLicense] = useState<Partial<LicenseRequest>>({
@@ -660,6 +661,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
     setIsUserModalOpen(false);
     setEditingUser(null);
+    setUserSaveSuccess(
+      editingUser.id
+        ? (language === 'ar' ? 'تم حفظ وتحديث بيانات وكلمة مرور المشرف بنجاح' : 'Supervisor profile & password updated successfully!')
+        : (language === 'ar' ? 'تمت إضافة المشرف الجديد بنجاح' : 'New supervisor added successfully!')
+    );
+    setTimeout(() => setUserSaveSuccess(null), 4000);
+  };
+
+  const handleDeleteUser = (id: string) => {
+    const target = adminUsers.find((u) => u.id === id);
+    if (!target) return;
+    if (target.role === 'super_admin' && adminUsers.filter((u) => u.role === 'super_admin').length <= 1) {
+      alert(language === 'ar' ? 'لا يمكن حذف المشرف العام الرئيسي للنظام' : 'Cannot delete the primary Super Admin account.');
+      return;
+    }
+    if (confirm(language === 'ar' ? `هل أنت متأكد من حذف المشرف "${target.fullName || target.username}"؟` : `Delete supervisor "${target.fullName || target.username}"?`)) {
+      onUpdateUsers(adminUsers.filter((u) => u.id !== id));
+      setUserSaveSuccess(language === 'ar' ? 'تم حذف المشرف بنجاح' : 'Supervisor deleted successfully.');
+      setTimeout(() => setUserSaveSuccess(null), 4000);
+    }
   };
 
   const handleToggleUserActive = (id: string) => {
@@ -1585,6 +1606,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </button>
             </div>
 
+            {userSaveSuccess && (
+              <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-200 text-xs font-semibold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>{userSaveSuccess}</span>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {adminUsers.map((user) => (
                 <div
@@ -1651,12 +1679,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
 
                   <div className="flex items-center justify-between pt-3 border-t border-neutral-100 dark:border-neutral-800 text-xs">
-                    <button
-                      onClick={() => handleToggleUserActive(user.id)}
-                      className={`text-xs font-semibold ${user.active ? 'text-neutral-500 hover:text-red-500' : 'text-emerald-600'}`}
-                    >
-                      {user.active ? (language === 'ar' ? 'تعطيل الحساب' : 'Deactivate') : (language === 'ar' ? 'تفعيل الحساب' : 'Activate')}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleToggleUserActive(user.id)}
+                        className={`text-xs font-semibold ${user.active ? 'text-neutral-500 hover:text-red-500' : 'text-emerald-600'}`}
+                      >
+                        {user.active ? (language === 'ar' ? 'تعطيل' : 'Deactivate') : (language === 'ar' ? 'تفعيل' : 'Activate')}
+                      </button>
+                      {!(user.role === 'super_admin' && adminUsers.filter((u) => u.role === 'super_admin').length <= 1) && (
+                        <button
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="text-xs text-red-500 hover:underline font-semibold"
+                        >
+                          {language === 'ar' ? 'حذف' : 'Delete'}
+                        </button>
+                      )}
+                    </div>
                     <button
                       onClick={() => {
                         setEditingUser(user);
