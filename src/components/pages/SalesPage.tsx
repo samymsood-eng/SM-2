@@ -23,6 +23,7 @@ import {
   Lock,
   Copy,
 } from 'lucide-react';
+import { convertImageUrl } from '../../utils/imageCompressor';
 
 interface SalesPageProps {
   products: Product[];
@@ -270,9 +271,12 @@ export const SalesPage: React.FC<SalesPageProps> = ({
                     {/* Visual Screenshot / Gallery Header */}
                     <div className="relative aspect-video w-full overflow-hidden bg-neutral-100 dark:bg-neutral-800">
                       <img
-                        src={product.images[0]}
+                        src={convertImageUrl(product.images?.[0] || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80')}
                         alt={name}
                         referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80';
+                        }}
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                       <div className="absolute top-3 start-3">
@@ -486,23 +490,34 @@ export const SalesPage: React.FC<SalesPageProps> = ({
             <div className="space-y-3">
               <div className="aspect-video w-full rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-800 bg-neutral-100 dark:bg-neutral-800">
                 <img
-                  src={selectedProduct.images[activeImageIndex] || selectedProduct.images[0]}
+                  src={convertImageUrl(selectedProduct.images?.[activeImageIndex] || selectedProduct.images?.[0] || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80')}
                   alt="Screenshot"
                   referrerPolicy="no-referrer"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80';
+                  }}
                   className="w-full h-full object-cover"
                 />
               </div>
-              {selectedProduct.images.length > 1 && (
-                <div className="flex gap-2">
+              {selectedProduct.images && selectedProduct.images.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto pb-1">
                   {selectedProduct.images.map((img, idx) => (
                     <button
                       key={idx}
                       onClick={() => setActiveImageIndex(idx)}
-                      className={`h-16 w-24 rounded overflow-hidden border-2 transition-all ${
-                        activeImageIndex === idx ? 'border-amber-500' : 'border-transparent opacity-60 hover:opacity-100'
+                      className={`h-16 w-24 rounded-lg overflow-hidden border-2 shrink-0 transition-all ${
+                        activeImageIndex === idx ? 'border-amber-500 scale-102 shadow-xs' : 'border-transparent opacity-60 hover:opacity-100'
                       }`}
                     >
-                      <img src={img} alt="thumb" referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                      <img
+                        src={convertImageUrl(img)}
+                        alt="thumb"
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80';
+                        }}
+                        className="w-full h-full object-cover"
+                      />
                     </button>
                   ))}
                 </div>

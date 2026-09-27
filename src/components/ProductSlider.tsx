@@ -15,6 +15,7 @@ import {
   Play,
   Pause,
 } from 'lucide-react';
+import { convertImageUrl } from '../utils/imageCompressor';
 
 interface ProductSliderProps {
   products: Product[];
@@ -67,7 +68,8 @@ export const ProductSlider: React.FC<ProductSliderProps> = ({
   const tagline = language === 'ar' ? currentProduct.tagline : currentProduct.taglineEn;
   const desc = language === 'ar' ? currentProduct.description : currentProduct.descriptionEn;
   const features = language === 'ar' ? currentProduct.features : currentProduct.featuresEn;
-  const currentImage = currentProduct.images[activeImageSubIndex] || currentProduct.images[0];
+  const rawImage = currentProduct.images?.[activeImageSubIndex] || currentProduct.images?.[0] || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80';
+  const currentImage = convertImageUrl(rawImage);
 
   return (
     <div
@@ -126,6 +128,9 @@ export const ProductSlider: React.FC<ProductSliderProps> = ({
               src={currentImage}
               alt={name}
               referrerPolicy="no-referrer"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80';
+              }}
               className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
             />
             {/* Version & License Floating Badges */}
@@ -164,9 +169,12 @@ export const ProductSlider: React.FC<ProductSliderProps> = ({
                   }`}
                 >
                   <img
-                    src={img}
+                    src={convertImageUrl(img)}
                     alt={`Thumbnail ${idx + 1}`}
                     referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80';
+                    }}
                     className="w-full h-full object-cover"
                   />
                   <div className="absolute inset-0 bg-black/10 hover:bg-transparent" />

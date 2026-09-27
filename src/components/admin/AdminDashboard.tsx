@@ -51,7 +51,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { calculateExpirationDate } from '../pages/LicenseActivationPage';
-import { compressImageFile } from '../../utils/imageCompressor';
+import { compressImageFile, convertImageUrl } from '../../utils/imageCompressor';
 import { generateSitemapXml, generateRobotsTxt } from '../../lib/sitemapGenerator';
 import {
   showWebNotification,
@@ -446,9 +446,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     e.preventDefault();
     if (!editingProduct?.name) return;
 
+    // Clean and convert all image URLs (Drive to direct embed, trim whitespace)
+    const cleanedImages = (editingProduct.images || [])
+      .map((img) => (typeof img === 'string' ? convertImageUrl(img.trim()) : img))
+      .filter(Boolean);
+    const finalImages = cleanedImages.length
+      ? cleanedImages
+      : ['https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80'];
+
     if (editingProduct.id) {
       // Update
-      const updated = products.map((p) => (p.id === editingProduct.id ? ({ ...p, ...editingProduct } as Product) : p));
+      const updated = products.map((p) =>
+        p.id === editingProduct.id
+          ? ({ ...p, ...editingProduct, images: finalImages } as Product)
+          : p
+      );
       onUpdateProducts(updated);
     } else {
       // Create
@@ -466,7 +478,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         license: editingProduct.license || 'MIT',
         rating: 5.0,
         downloadsCount: 0,
-        images: editingProduct.images?.length ? editingProduct.images : ['https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80'],
+        images: finalImages,
         features: editingProduct.features || ['ميزة رقمية متقدمة', 'أداء استثنائي', 'حماية مشفرة'],
         featuresEn: editingProduct.featuresEn || ['Advanced digital capability', 'High performance', 'Encrypted protection'],
         systemRequirements: ['Windows / macOS / Linux'],
@@ -506,7 +518,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         ratio: result.compressionRatio,
       });
 
-      setEditingProduct((prev) => (prev ? { ...prev, images: [result.dataUrl] } : { images: [result.dataUrl] }));
+      setEditingProduct((prev) => {
+        const existing = prev?.images || [];
+        return prev ? { ...prev, images: [result.dataUrl, ...existing] } : { images: [result.dataUrl] };
+      });
     } catch (err: any) {
       setImageUploadError(err?.message || (language === 'ar' ? 'تعذر معالجة وضغط الصورة.' : 'Failed to compress image.'));
     } finally {
@@ -1399,7 +1414,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-5 space-y-4 shadow-sm"
                 >
                   <div className="aspect-video w-full rounded-lg overflow-hidden bg-neutral-100 dark:bg-neutral-800">
-                    <img src={p.images[0]} alt={p.name} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                    <img
+                      src={convertImageUrl(p.images?.[0] || 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80')}
+                      alt={p.name}
+                      referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80';
+                      }}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
                   <div>
                     <h4 className="font-serif text-base font-bold text-neutral-900 dark:text-neutral-100">
@@ -2643,48 +2666,90 @@ jobs:
                     )}
                   </div>
                 ) : (
-                  <div>
-                    <input
-                      type="url"
-                      value={editingProduct?.images?.[0] || ''}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, images: [e.target.value] })}
-                      placeholder="https://images.unsplash.com/... أو رابط مباشر"
+                  <div className="space-y-1.5">
+                    <textarea
+                      rows={2}
+                      value={editingProduct?.images?.join('\n') || ''}
+                      onChange={(e) => {
+                        const rawLines = e.target.value.split('\n');
+                        setEditingProduct({ ...editingProduct, images: rawLines });
+                      }}
+                      onBlur={(e) => {
+                        const urls = e.target.value
+                          .split('\n')
+                          .map((u) => u.trim())
+                          .filter(Boolean)
+                          .map(convertImageUrl);
+                        setEditingProduct({ ...editingProduct, images: urls });
+                      }}
+                      placeholder={language === 'ar' ? 'https://... رابط صورة مباشر أو Google Drive (رابط في كل سطر للمزيد من الصور)' : 'https://... Direct image URL or Google Drive link (one per line for multiple)'}
                       className="w-full px-3 py-2 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 font-mono text-[11px]"
                     />
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 flex items-start gap-1">
+                      <span className="shrink-0">✦</span>
+                      <span>
+                        {language === 'ar'
+                          ? 'يمكنك إضافة أكثر من صورة (رابط في كل سطر). روابط Google Drive تُحوَّل تلقائياً — تأكد أن الملف مشارك للعموم (Anyone with the link)'
+                          : 'You can add multiple images (one per line). Google Drive links auto-convert — ensure file sharing: Anyone with the link'}
+                      </span>
+                    </p>
                   </div>
                 )}
 
-                {/* Preview of current image */}
-                {editingProduct?.images?.[0] && (
-                  <div className="flex items-center gap-3 pt-1">
-                    <div className="w-16 h-12 rounded-lg border border-neutral-300 dark:border-neutral-700 overflow-hidden bg-neutral-100 dark:bg-neutral-800 shrink-0">
-                      <img
-                        src={editingProduct.images[0]}
-                        alt="Preview"
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover"
-                      />
+                {/* Preview of current images */}
+                {editingProduct?.images && editingProduct.images.filter(Boolean).length > 0 && (
+                  <div className="space-y-2 pt-2 border-t border-neutral-200/80 dark:border-neutral-800">
+                    <div className="flex items-center justify-between text-[11px] font-semibold text-neutral-700 dark:text-neutral-300">
+                      <span>
+                        {language === 'ar'
+                          ? `الصور المرفقة (${editingProduct.images.filter(Boolean).length}):`
+                          : `Attached Images (${editingProduct.images.filter(Boolean).length}):`}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingProduct({ ...editingProduct, images: [] });
+                          setCompressionStats(null);
+                        }}
+                        className="text-[10px] text-red-600 dark:text-red-400 hover:underline cursor-pointer"
+                      >
+                        {language === 'ar' ? 'حذف الكل' : 'Clear All'}
+                      </button>
                     </div>
-                    <div className="flex-1 min-w-0 text-[11px]">
-                      <div className="font-medium text-neutral-800 dark:text-neutral-200 truncate">
-                        {language === 'ar' ? 'معاينة الغلاف الحالي' : 'Current Cover Preview'}
-                      </div>
-                      <div className="text-[10px] text-neutral-500 dark:text-neutral-400">
-                        {editingProduct.images[0].startsWith('data:')
-                          ? (language === 'ar' ? 'صورة مضغوطة محلياً (WebP Data URL)' : 'Locally compressed WebP Data URL')
-                          : editingProduct.images[0]}
-                      </div>
+                    <div className="flex flex-wrap gap-2.5">
+                      {editingProduct.images.filter(Boolean).map((imgUrl, imgIdx) => (
+                        <div
+                          key={imgIdx}
+                          className="relative group w-20 h-16 rounded-lg border border-neutral-300 dark:border-neutral-700 overflow-hidden bg-neutral-100 dark:bg-neutral-800 shrink-0 shadow-xs"
+                        >
+                          <img
+                            src={convertImageUrl(imgUrl)}
+                            alt={`Preview ${imgIdx + 1}`}
+                            referrerPolicy="no-referrer"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1200&q=80';
+                            }}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-1 start-1">
+                            <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-neutral-900/80 text-white backdrop-blur-xs">
+                              {imgIdx === 0 ? (language === 'ar' ? 'غلاف' : 'Cover') : `#${imgIdx + 1}`}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedImgs = editingProduct.images.filter((_, idx) => idx !== imgIdx);
+                              setEditingProduct({ ...editingProduct, images: updatedImgs });
+                            }}
+                            className="absolute top-1 end-1 p-0.5 rounded-full bg-red-600/90 hover:bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-xs"
+                            title={language === 'ar' ? 'حذف هذه الصورة' : 'Remove image'}
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingProduct({ ...editingProduct, images: [] });
-                        setCompressionStats(null);
-                      }}
-                      className="text-xs text-red-600 dark:text-red-400 hover:underline cursor-pointer"
-                    >
-                      {language === 'ar' ? 'إزالة' : 'Remove'}
-                    </button>
                   </div>
                 )}
               </div>

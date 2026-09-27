@@ -1,3 +1,57 @@
+/**
+ * Converts any Google Drive sharing/view URL into a direct embeddable image URL.
+ * ONLY applies to product.images[] field — never to downloadUrl or directUrl.
+ *
+ * Supported input formats → converted to direct embed URL:
+ *   https://drive.google.com/file/d/FILE_ID/view?...  → https://lh3.googleusercontent.com/d/FILE_ID
+ *   https://drive.google.com/open?id=FILE_ID           → https://lh3.googleusercontent.com/d/FILE_ID
+ *   https://drive.google.com/uc?id=FILE_ID&export=view → https://lh3.googleusercontent.com/d/FILE_ID
+ *   https://drive.google.com/thumbnail?id=FILE_ID      → https://lh3.googleusercontent.com/d/FILE_ID
+ *
+ * Non-Drive URLs (https://, data:, blob:) pass through unchanged.
+ */
+export function convertImageUrl(url: string): string {
+  if (!url || typeof url !== 'string') return url;
+
+  // Already a direct embed URL — no conversion needed
+  if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+
+  // Not a Google Drive URL — pass through unchanged
+  if (!url.includes('drive.google.com') && !url.includes('docs.google.com')) return url;
+
+  let fileId: string | null = null;
+
+  // Pattern 1: /file/d/FILE_ID/...
+  const filePattern = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (filePattern) {
+    fileId = filePattern[1];
+  }
+
+  // Pattern 2: ?id=FILE_ID or &id=FILE_ID
+  if (!fileId) {
+    const idPattern = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (idPattern) {
+      fileId = idPattern[1];
+    }
+  }
+
+  // Pattern 3: /thumbnail?id=FILE_ID
+  if (!fileId) {
+    const thumbPattern = url.match(/thumbnail\?id=([a-zA-Z0-9_-]+)/);
+    if (thumbPattern) {
+      fileId = thumbPattern[1];
+    }
+  }
+
+  // If we found a valid file ID, return the direct embed URL
+  if (fileId) {
+    return `https://lh3.googleusercontent.com/d/${fileId}`;
+  }
+
+  // Fallback: return original URL unchanged
+  return url;
+}
+
 export interface CompressImageOptions {
   maxWidth?: number;
   maxHeight?: number;
