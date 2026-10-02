@@ -55,6 +55,9 @@ import {
   subscribeLicenseRequests,
   saveLicenseRequestToCloud,
   deleteLicenseRequestFromCloud,
+  subscribeMaintenanceMode,
+  saveMaintenanceMode,
+  type MaintenanceSettings,
 } from './lib/firestoreService';
 import {
   NotificationStatus,
@@ -71,6 +74,7 @@ import { SalesPage } from './components/pages/SalesPage';
 import { DownloadsPage } from './components/pages/DownloadsPage';
 import { DeveloperSupportPage } from './components/pages/DeveloperSupportPage';
 import { LicenseActivationPage } from './components/pages/LicenseActivationPage';
+import { MaintenancePage } from './components/pages/MaintenancePage';
 const AdminDashboard = React.lazy(() =>
   import('./components/admin/AdminDashboard').then((m) => ({ default: m.AdminDashboard }))
 );
@@ -188,6 +192,11 @@ export default function App() {
     return saved ? JSON.parse(saved) : initialLicenseRequests;
   });
 
+  const [maintenanceMode, setMaintenanceMode] = useState<MaintenanceSettings>(() => {
+    const saved = localStorage.getItem('sm2_maintenance');
+    return saved ? JSON.parse(saved) : { enabled: false };
+  });
+
   const [isGithubModalOpen, setIsGithubModalOpen] = useState(false);
 
   // --- REAL-TIME FIRESTORE SUBSCRIPTIONS ---
@@ -201,6 +210,10 @@ export default function App() {
     const unsubTickets = subscribeSupportTickets((items) => setSupportTickets(items));
     const unsubGithub = subscribeGitHubSettings((settings) => setGithubSettings(settings));
     const unsubLicenses = subscribeLicenseRequests((items) => setLicenseRequests(items));
+    const unsubMaintenance = subscribeMaintenanceMode((settings) => {
+      setMaintenanceMode(settings);
+      localStorage.setItem('sm2_maintenance', JSON.stringify(settings));
+    });
 
     return () => {
       unsubProducts();
@@ -212,6 +225,7 @@ export default function App() {
       unsubTickets();
       unsubGithub();
       unsubLicenses();
+      unsubMaintenance();
     };
   }, []);
 
@@ -463,6 +477,11 @@ export default function App() {
     setGithubSettings(newSettings);
   };
 
+  const handleToggleMaintenance = (settings: MaintenanceSettings) => {
+    saveMaintenanceMode(settings);
+    setMaintenanceMode(settings);
+  };
+
   const handleAddLicenseRequest = (newReq: LicenseRequest) => {
     saveLicenseRequestToCloud(newReq);
     setLicenseRequests((prev) => [newReq, ...prev.filter((r) => r.id !== newReq.id)]);
@@ -566,101 +585,113 @@ export default function App() {
 
       {/* Main Content Router */}
       <main className="relative z-10 flex-1">
-        {currentPage === 'home' && (
-          <HomePage
-            downloads={downloads}
-            changelogs={changelogs}
-            products={products}
-            subscribers={subscribers}
-            githubSettings={githubSettings}
-            language={language}
-            theme={theme}
-            setCurrentPage={setCurrentPage}
-            onSubscribeEmail={handleSubscribeEmail}
-            onOpenGithubModal={() => setIsGithubModalOpen(true)}
-          />
-        )}
-
-        {currentPage === 'sales' && (
-          <SalesPage
-            products={products}
+        {/* Maintenance Mode: show maintenance page to non-admin visitors */}
+        {maintenanceMode.enabled && currentPage !== 'admin' ? (
+          <MaintenancePage
             language={language}
             setCurrentPage={setCurrentPage}
-            onSelectDownload={(url) => {
-              setCurrentPage('downloads');
-            }}
-            onAddReview={handleAddReview}
           />
-        )}
+        ) : (
+          <>
+            {currentPage === 'home' && (
+              <HomePage
+                downloads={downloads}
+                changelogs={changelogs}
+                products={products}
+                subscribers={subscribers}
+                githubSettings={githubSettings}
+                language={language}
+                theme={theme}
+                setCurrentPage={setCurrentPage}
+                onSubscribeEmail={handleSubscribeEmail}
+                onOpenGithubModal={() => setIsGithubModalOpen(true)}
+              />
+            )}
 
-        {currentPage === 'downloads' && (
-          <DownloadsPage
-            downloads={downloads}
-            changelogs={changelogs}
-            language={language}
-            onSubscribeEmail={handleSubscribeEmail}
-            notificationStatus={notificationStatus}
-            onToggleNotifications={handleToggleNotifications}
-          />
-        )}
+            {currentPage === 'sales' && (
+              <SalesPage
+                products={products}
+                language={language}
+                setCurrentPage={setCurrentPage}
+                onSelectDownload={(url) => {
+                  setCurrentPage('downloads');
+                }}
+                onAddReview={handleAddReview}
+              />
+            )}
 
-        {currentPage === 'developer' && (
-          <DeveloperSupportPage
-            tickets={supportTickets}
-            language={language}
-            onAddTicket={handleAddTicket}
-            onOpenGithubModal={() => setIsGithubModalOpen(true)}
-            setCurrentPage={setCurrentPage}
-          />
-        )}
+            {currentPage === 'downloads' && (
+              <DownloadsPage
+                downloads={downloads}
+                changelogs={changelogs}
+                language={language}
+                onSubscribeEmail={handleSubscribeEmail}
+                notificationStatus={notificationStatus}
+                onToggleNotifications={handleToggleNotifications}
+              />
+            )}
 
-        {currentPage === 'licenses' && (
-          <LicenseActivationPage
-            products={products}
-            licenseRequests={licenseRequests}
-            onSubmitLicenseRequest={handleAddLicenseRequest}
-            githubSettings={githubSettings}
-            language={language}
-          />
-        )}
+            {currentPage === 'developer' && (
+              <DeveloperSupportPage
+                tickets={supportTickets}
+                language={language}
+                onAddTicket={handleAddTicket}
+                onOpenGithubModal={() => setIsGithubModalOpen(true)}
+                setCurrentPage={setCurrentPage}
+              />
+            )}
 
-        {currentPage === 'admin' && (
-          <React.Suspense
-            fallback={
-              <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
-                <div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-                <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">
-                  {language === 'ar' ? 'جارٍ تحميل لوحة الإدارة...' : 'Loading Admin Dashboard...'}
-                </p>
-              </div>
-            }
-          >
-            <AdminDashboard
-              currentUser={currentUser}
-              onLogin={handleLogin}
-              onLogout={handleLogout}
-              adminUsers={adminUsers}
-              onUpdateUsers={handleUpdateUsers}
-              products={products}
-              onUpdateProducts={handleUpdateProducts}
-              docs={docs}
-              onUpdateDocs={handleUpdateDocs}
-              downloads={downloads}
-              onUpdateDownloads={handleUpdateDownloads}
-              changelogs={changelogs}
-              onAddChangelog={handleAddChangelog}
-              subscribers={subscribers}
-              notificationLogs={notificationLogs}
-              onSendNotification={handleSendNotification}
-              githubSettings={githubSettings}
-              onUpdateGithubSettings={handleUpdateGithubSettings}
-              language={language}
-              licenseRequests={licenseRequests}
-              onUpdateLicenseRequest={handleUpdateLicenseRequest}
-              onAddLicenseRequest={handleAddLicenseRequest}
-              onDeleteLicenseRequest={handleDeleteLicenseRequest}
-            />
-          </React.Suspense>
+            {currentPage === 'licenses' && (
+              <LicenseActivationPage
+                products={products}
+                licenseRequests={licenseRequests}
+                onSubmitLicenseRequest={handleAddLicenseRequest}
+                githubSettings={githubSettings}
+                language={language}
+              />
+            )}
+
+            {currentPage === 'admin' && (
+              <React.Suspense
+                fallback={
+                  <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3">
+                    <div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                    <p className="text-sm font-medium text-neutral-500 dark:text-neutral-400">
+                      {language === 'ar' ? 'جارٍ تحميل لوحة الإدارة...' : 'Loading Admin Dashboard...'}
+                    </p>
+                  </div>
+                }
+              >
+                <AdminDashboard
+                  currentUser={currentUser}
+                  onLogin={handleLogin}
+                  onLogout={handleLogout}
+                  adminUsers={adminUsers}
+                  onUpdateUsers={handleUpdateUsers}
+                  products={products}
+                  onUpdateProducts={handleUpdateProducts}
+                  docs={docs}
+                  onUpdateDocs={handleUpdateDocs}
+                  downloads={downloads}
+                  onUpdateDownloads={handleUpdateDownloads}
+                  changelogs={changelogs}
+                  onAddChangelog={handleAddChangelog}
+                  subscribers={subscribers}
+                  notificationLogs={notificationLogs}
+                  onSendNotification={handleSendNotification}
+                  githubSettings={githubSettings}
+                  onUpdateGithubSettings={handleUpdateGithubSettings}
+                  language={language}
+                  licenseRequests={licenseRequests}
+                  onUpdateLicenseRequest={handleUpdateLicenseRequest}
+                  onAddLicenseRequest={handleAddLicenseRequest}
+                  onDeleteLicenseRequest={handleDeleteLicenseRequest}
+                  maintenanceMode={maintenanceMode}
+                  onToggleMaintenance={handleToggleMaintenance}
+                />
+              </React.Suspense>
+            )}
+          </>
         )}
       </main>
 

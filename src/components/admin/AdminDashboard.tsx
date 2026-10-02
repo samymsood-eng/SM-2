@@ -13,6 +13,7 @@ import {
   LicenseRequest,
 } from '../../types';
 import { translations } from '../../i18n/translations';
+import { exportAllData, type MaintenanceSettings } from '../../lib/firestoreService';
 import {
   Lock,
   UserCheck,
@@ -49,6 +50,10 @@ import {
   Image as ImageIcon,
   Loader2,
   Clock,
+  Construction,
+  DatabaseBackup,
+  ToggleLeft,
+  ToggleRight,
 } from 'lucide-react';
 import { calculateExpirationDate } from '../pages/LicenseActivationPage';
 import { compressImageFile, convertImageUrl } from '../../utils/imageCompressor';
@@ -87,6 +92,8 @@ interface AdminDashboardProps {
   onUpdateLicenseRequest?: (req: LicenseRequest) => void;
   onAddLicenseRequest?: (req: LicenseRequest) => void;
   onDeleteLicenseRequest?: (id: string) => void;
+  maintenanceMode?: MaintenanceSettings;
+  onToggleMaintenance?: (settings: MaintenanceSettings) => void;
 }
 
 export function getLicenseExpiryDetails(req: LicenseRequest, language: Language) {
@@ -166,12 +173,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onUpdateLicenseRequest,
   onAddLicenseRequest,
   onDeleteLicenseRequest,
+  maintenanceMode = { enabled: false },
+  onToggleMaintenance,
 }) => {
   const t = translations[language];
 
   // Active sub-tab
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'licenses' | 'products' | 'docs' | 'downloads' | 'users' | 'github' | 'notifications' | 'changelog' | 'deploy' | 'seo'
+    'overview' | 'licenses' | 'products' | 'docs' | 'downloads' | 'users' | 'github' | 'notifications' | 'changelog' | 'deploy' | 'seo' | 'maintenance' | 'backup'
   >('licenses');
 
   // License management action state
@@ -825,6 +834,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             { id: 'changelog', label: t.admin.changelogTab, icon: <History className="w-3.5 h-3.5" /> },
             { id: 'seo', label: language === 'ar' ? 'أرشفة Sitemap و Robots' : 'SEO & Sitemap', icon: <Globe className="w-3.5 h-3.5" /> },
             { id: 'deploy', label: t.admin.githubDeployTab, icon: <Terminal className="w-3.5 h-3.5" /> },
+            { id: 'maintenance', label: language === 'ar' ? 'وضع الصيانة' : 'Maintenance', icon: <Construction className="w-3.5 h-3.5 text-rose-500" /> },
+            { id: 'backup', label: language === 'ar' ? 'النسخ الاحتياطي' : 'Backup & Restore', icon: <DatabaseBackup className="w-3.5 h-3.5 text-sky-500" /> },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -2510,6 +2521,194 @@ jobs:
         uses: actions/deploy-pages@v4`}
                   </pre>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- TAB: MAINTENANCE MODE --- */}
+        {activeTab === 'maintenance' && (
+          <div className="space-y-6">
+            <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6 space-y-6 shadow-sm">
+              <div className="flex items-center gap-3 border-b border-neutral-100 dark:border-neutral-800 pb-4">
+                <Construction className="w-5 h-5 text-rose-500" />
+                <div>
+                  <h3 className="font-serif text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                    {language === 'ar' ? 'مفتاح وضع الصيانة السريع' : 'Quick Maintenance Mode Switch'}
+                  </h3>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    {language === 'ar'
+                      ? 'عند التفعيل، يرى الزوار صفحة صيانة حديثة بينما تستمر لوحة التحكم في العمل بشكل طبيعي.'
+                      : 'When enabled, visitors see a premium maintenance page while the admin dashboard remains fully accessible.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Main Toggle */}
+              <div className="flex items-center justify-between p-4 rounded-xl border-2 transition-all duration-300"
+                style={{ borderColor: maintenanceMode.enabled ? '#ef4444' : '#d1fae5' }}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                    maintenanceMode.enabled ? 'bg-rose-100 dark:bg-rose-950/40' : 'bg-emerald-100 dark:bg-emerald-950/40'
+                  }`}>
+                    <Construction className={`w-5 h-5 ${maintenanceMode.enabled ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`} />
+                  </div>
+                  <div>
+                    <div className="font-bold text-sm text-neutral-900 dark:text-neutral-100">
+                      {maintenanceMode.enabled
+                        ? (language === 'ar' ? '🔴 الموقع في وضع الصيانة الآن' : '🔴 Site is in Maintenance Mode')
+                        : (language === 'ar' ? '🟢 الموقع يعمل بشكل طبيعي' : '🟢 Site is Live & Operational')}
+                    </div>
+                    <div className="text-xs text-neutral-500">
+                      {maintenanceMode.enabled
+                        ? (language === 'ar' ? 'الزوار يرون صفحة الصيانة الآن' : 'Visitors are currently seeing the maintenance page')
+                        : (language === 'ar' ? 'جميع الصفحات متاحة للعموم' : 'All pages are accessible to the public')}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onToggleMaintenance && onToggleMaintenance({ ...maintenanceMode, enabled: !maintenanceMode.enabled })}
+                  className={`relative flex-shrink-0 w-14 h-7 rounded-full transition-all duration-300 focus:outline-none shadow-inner ${
+                    maintenanceMode.enabled ? 'bg-rose-500' : 'bg-emerald-500'
+                  }`}
+                  aria-label={maintenanceMode.enabled ? 'Disable maintenance mode' : 'Enable maintenance mode'}
+                >
+                  <span className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-all duration-300 ${
+                    maintenanceMode.enabled ? (language === 'ar' ? 'left-1' : 'right-1') : (language === 'ar' ? 'right-1' : 'left-1')
+                  }`} />
+                </button>
+              </div>
+
+              {/* Warning when enabled */}
+              {maintenanceMode.enabled && (
+                <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 flex items-start gap-3">
+                  <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-rose-800 dark:text-rose-300 leading-relaxed">
+                    {language === 'ar'
+                      ? 'تنبيه: الموقع مغلق للعموم الآن. فقط لوحة التحكم (/admin) تبقى متاحة للمشرفين. لا تنسَ إيقاف وضع الصيانة عند الانتهاء.'
+                      : 'Warning: The site is now closed to the public. Only the admin dashboard (/admin) remains accessible. Remember to disable maintenance mode when done.'}
+                  </p>
+                </div>
+              )}
+
+              {/* Info card */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-center">
+                  <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">🛑</div>
+                  <div className="text-xs font-medium mt-1 text-neutral-700 dark:text-neutral-300">
+                    {language === 'ar' ? 'يحجب الزوار العاديين' : 'Blocks Regular Visitors'}
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-center">
+                  <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">🔒</div>
+                  <div className="text-xs font-medium mt-1 text-neutral-700 dark:text-neutral-300">
+                    {language === 'ar' ? 'لوحة التحكم تبقى مفتوحة' : 'Admin Panel Stays Open'}
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-center">
+                  <div className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">☁️</div>
+                  <div className="text-xs font-medium mt-1 text-neutral-700 dark:text-neutral-300">
+                    {language === 'ar' ? 'يُحفظ فوراً في Firebase' : 'Saved Instantly in Firebase'}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* --- TAB: BACKUP & RESTORE --- */}
+        {activeTab === 'backup' && (
+          <div className="space-y-6">
+            <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 p-6 space-y-6 shadow-sm">
+              <div className="flex items-center gap-3 border-b border-neutral-100 dark:border-neutral-800 pb-4">
+                <DatabaseBackup className="w-5 h-5 text-sky-500" />
+                <div>
+                  <h3 className="font-serif text-lg font-bold text-neutral-900 dark:text-neutral-100">
+                    {language === 'ar' ? 'تصدير واستعادة البيانات (JSON)' : 'Data Backup & Restore (JSON)'}
+                  </h3>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    {language === 'ar'
+                      ? 'قم بتصدير كافة بيانات Firestore كملف JSON واحد، أو استعد البيانات من نسخة احتياطية سابقة.'
+                      : 'Export all Firestore data as a single JSON file, or restore data from a previous backup.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Export */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm text-neutral-800 dark:text-neutral-200 flex items-center gap-2">
+                  <Download className="w-4 h-4 text-sky-500" />
+                  {language === 'ar' ? 'تصدير نسخة احتياطية' : 'Export Backup'}
+                </h4>
+                <p className="text-xs text-neutral-500">
+                  {language === 'ar'
+                    ? 'يقوم بتنزيل ملف JSON يحتوي على: المنتجات، التنزيلات، التغييرات، الوثائق، المستخدمين، المشتركين، التذاكر، التراخيص، والإعدادات.'
+                    : 'Downloads a JSON file containing: products, downloads, changelogs, docs, users, subscribers, tickets, licenses, and settings.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const btn = document.getElementById('backup-export-btn') as HTMLButtonElement;
+                    if (btn) { btn.disabled = true; btn.textContent = language === 'ar' ? 'جارٍ التصدير...' : 'Exporting...'; }
+                    try {
+                      const data = await exportAllData();
+                      const json = JSON.stringify(data, null, 2);
+                      const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+                      const url = URL.createObjectURL(blob);
+                      const link = document.createElement('a');
+                      link.href = url;
+                      link.download = `SM2_Backup_${new Date().toISOString().split('T')[0]}.json`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                      URL.revokeObjectURL(url);
+                    } catch (err) {
+                      alert(language === 'ar' ? 'حدث خطأ أثناء التصدير' : 'Error during export');
+                    } finally {
+                      if (btn) { btn.disabled = false; btn.textContent = language === 'ar' ? '⬇ تنزيل النسخة الاحتياطية الآن' : '⬇ Download Backup Now'; }
+                    }
+                  }}
+                  id="backup-export-btn"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  {language === 'ar' ? '⬇ تنزيل النسخة الاحتياطية الآن' : '⬇ Download Backup Now'}
+                </button>
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-neutral-100 dark:border-neutral-800" />
+
+              {/* Info */}
+              <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 flex items-start gap-3">
+                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+                    {language === 'ar' ? 'ملاحظة بشأن الاستعادة:' : 'About Restore:'}
+                  </p>
+                  <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                    {language === 'ar'
+                      ? 'لاستعادة البيانات من نسخة احتياطية، يمكنك استخدام Firebase Console > Firestore > Import، أو رفع ملف JSON إلى المجموعات يدوياً. ميزة الاستعادة التلقائية عبر الواجهة قيد التطوير.'
+                      : 'To restore data from a backup, use Firebase Console > Firestore > Import, or manually re-upload JSON data to collections. Automatic restore via UI is under development.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label: language === 'ar' ? 'المنتجات' : 'Products', count: products.length, color: 'amber' },
+                  { label: language === 'ar' ? 'التنزيلات' : 'Downloads', count: downloads.length, color: 'sky' },
+                  { label: language === 'ar' ? 'المستخدمون' : 'Users', count: adminUsers.length, color: 'violet' },
+                  { label: language === 'ar' ? 'التراخيص' : 'Licenses', count: licenseRequests.length, color: 'emerald' },
+                ].map((s) => (
+                  <div key={s.label} className="p-3 rounded-lg bg-neutral-50 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 text-center">
+                    <div className="text-xl font-black text-neutral-900 dark:text-neutral-100">{s.count}</div>
+                    <div className="text-[11px] text-neutral-500 mt-0.5">{s.label}</div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

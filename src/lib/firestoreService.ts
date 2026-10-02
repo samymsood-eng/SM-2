@@ -530,3 +530,70 @@ export async function deleteLicenseRequestFromCloud(reqId: string): Promise<void
   }
 }
 
+// --- MAINTENANCE MODE ---
+export interface MaintenanceSettings {
+  enabled: boolean;
+  message?: string;
+  messageEn?: string;
+}
+
+export function subscribeMaintenanceMode(onUpdate: (settings: MaintenanceSettings) => void) {
+  const docRef = doc(db, 'settings', 'maintenance');
+  const unsubscribe = onSnapshot(
+    docRef,
+    (snapshot) => {
+      if (!snapshot.exists()) {
+        onUpdate({ enabled: false });
+      } else {
+        onUpdate(snapshot.data() as MaintenanceSettings);
+      }
+    },
+    (error) => {
+      console.warn('Firestore maintenance mode listener error:', error);
+      const saved = localStorage.getItem('sm2_maintenance');
+      onUpdate(saved ? JSON.parse(saved) : { enabled: false });
+    }
+  );
+  return unsubscribe;
+}
+
+export async function saveMaintenanceMode(settings: MaintenanceSettings): Promise<void> {
+  try {
+    await setDoc(doc(db, 'settings', 'maintenance'), settings);
+    localStorage.setItem('sm2_maintenance', JSON.stringify(settings));
+  } catch (err) {
+    console.error('Error saving maintenance mode to Firestore:', err);
+    // Fallback: save locally only
+    localStorage.setItem('sm2_maintenance', JSON.stringify(settings));
+  }
+}
+
+// --- BACKUP: Read all collections for export ---
+export async function exportAllData() {
+  const collections = [
+    'products', 'downloads', 'changelogs', 'docs',
+    'adminUsers', 'subscribers', 'supportTickets', 'licenses',
+  ];
+  const result: Record<string, unknown[]> = {};
+  for (const colName of collections) {
+    try {
+      const snap = await getDocs(collection(db, colName));
+      result[colName] = snap.docs.map((d) => d.data());
+    } catch {
+      result[colName] = [];
+    }
+  }
+  // Settings (single docs)
+  try {
+    const { getDoc } = await import('firebase/firestore');
+    const ghSnap = await getDoc(doc(db, 'settings', 'github'));
+    result['settings_github'] = ghSnap.exists() ? [ghSnap.data()] : [];
+    const maintSnap = await getDoc(doc(db, 'settings', 'maintenance'));
+    result['settings_maintenance'] = maintSnap.exists() ? [maintSnap.data()] : [];
+  } catch {
+    result['settings_github'] = [];
+    result['settings_maintenance'] = [];
+  }
+  return result;
+}
+
