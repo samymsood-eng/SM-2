@@ -14,8 +14,10 @@ import {
   Zap,
   Play,
   Pause,
+  Share2,
 } from 'lucide-react';
 import { convertImageUrl } from '../utils/imageCompressor';
+import { ShareModal } from './modals/ShareModal';
 
 interface ProductSliderProps {
   products: Product[];
@@ -35,6 +37,7 @@ export const ProductSlider: React.FC<ProductSliderProps> = ({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [activeImageSubIndex, setActiveImageSubIndex] = useState(0);
+  const [sharingProduct, setSharingProduct] = useState<Product | null>(null);
   const isRtl = language === 'ar';
   const t = translations[language];
 
@@ -145,6 +148,16 @@ export const ProductSlider: React.FC<ProductSliderProps> = ({
 
             {/* Quick action buttons on visual */}
             <div className="absolute bottom-3 end-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSharingProduct(currentProduct)}
+                className="px-2.5 py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-900 text-white text-xs font-medium backdrop-blur-sm border border-neutral-700 flex items-center gap-1.5 transition-all shadow-md hover:scale-105 cursor-pointer"
+                title={language === 'ar' ? 'مشاركة هذا المنتج' : 'Share Product'}
+              >
+                <Share2 className="w-3.5 h-3.5 text-amber-400" />
+                <span className="hidden sm:inline">{language === 'ar' ? 'مشاركة' : 'Share'}</span>
+              </button>
+
               <button
                 onClick={() => onSelectProduct(currentProduct)}
                 className="px-3 py-1.5 rounded-lg bg-neutral-900/90 hover:bg-neutral-900 text-white text-xs font-medium backdrop-blur-sm border border-neutral-700 flex items-center gap-1.5 transition-all shadow-md hover:scale-105"
@@ -304,6 +317,14 @@ export const ProductSlider: React.FC<ProductSliderProps> = ({
           );
         })}
       </div>
+
+      {/* Quick Share Modal */}
+      <ShareModal
+        isOpen={!!sharingProduct}
+        onClose={() => setSharingProduct(null)}
+        product={sharingProduct}
+        language={language}
+      />
     </div>
   );
 };

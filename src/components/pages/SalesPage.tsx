@@ -22,8 +22,10 @@ import {
   PlusCircle,
   Lock,
   Copy,
+  Share2,
 } from 'lucide-react';
 import { convertImageUrl } from '../../utils/imageCompressor';
+import { ShareModal } from '../modals/ShareModal';
 
 interface SalesPageProps {
   products: Product[];
@@ -46,6 +48,7 @@ export const SalesPage: React.FC<SalesPageProps> = ({
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
   const [reviewsModalProduct, setReviewsModalProduct] = useState<Product | null>(null);
   const [downloadModalProduct, setDownloadModalProduct] = useState<Product | null>(null);
+  const [sharingProduct, setSharingProduct] = useState<Product | null>(null);
   const [copiedPassword, setCopiedPassword] = useState(false);
 
   const t = translations[language];
@@ -284,14 +287,25 @@ export const SalesPage: React.FC<SalesPageProps> = ({
                           v{product.version}
                         </span>
                       </div>
-                      <div className="absolute top-3 end-3">
+                      <div className="absolute top-3 end-3 flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSharingProduct(product);
+                          }}
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-neutral-900/80 hover:bg-neutral-900 text-white backdrop-blur-sm border border-neutral-700 shadow-xs transition-transform active:scale-95 cursor-pointer"
+                          title={language === 'ar' ? 'مشاركة هذا المنتج' : 'Share Product'}
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setReviewsModalProduct(product);
                           }}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-bold bg-amber-500 hover:bg-amber-400 text-neutral-950 shadow-sm transition-transform active:scale-95"
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-500 hover:bg-amber-400 text-neutral-950 shadow-sm transition-transform active:scale-95"
                           title={t.sales.viewReviews}
                         >
                           <Star className="w-3 h-3 fill-current" />
@@ -465,13 +479,23 @@ export const SalesPage: React.FC<SalesPageProps> = ({
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
         >
           <div className="relative w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 sm:p-8 shadow-2xl space-y-6">
-            <button
-              onClick={() => setSelectedProduct(null)}
-              className="absolute top-4 end-4 p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
+            <div className="absolute top-4 end-4 flex items-center gap-1.5 z-10">
+              <button
+                type="button"
+                onClick={() => setSharingProduct(selectedProduct)}
+                className="p-2 rounded-lg text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+                title={language === 'ar' ? 'مشاركة هذا المنتج' : 'Share Product'}
+              >
+                <Share2 className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setSelectedProduct(null)}
+                className="p-2 rounded-lg text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
             {/* Header */}
             <div>
@@ -876,6 +900,14 @@ export const SalesPage: React.FC<SalesPageProps> = ({
         product={reviewsModalProduct}
         language={language}
         onAddReview={handleReviewSubmission}
+      />
+
+      {/* Quick Share Modal */}
+      <ShareModal
+        isOpen={!!sharingProduct}
+        onClose={() => setSharingProduct(null)}
+        product={sharingProduct}
+        language={language}
       />
     </div>
   );
