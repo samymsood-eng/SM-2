@@ -597,3 +597,65 @@ export async function exportAllData() {
   return result;
 }
 
+// --- RESTORE: Restore collections from backup JSON ---
+export async function restoreBackupData(
+  data: Record<string, any[]>
+): Promise<{ success: boolean; restoredCounts: Record<string, number> }> {
+  const counts: Record<string, number> = {};
+  const collectionList = [
+    { key: 'products', name: 'products', idField: 'id', localKey: 'sm2_products' },
+    { key: 'downloads', name: 'downloads', idField: 'id', localKey: 'sm2_downloads' },
+    { key: 'changelogs', name: 'changelogs', idField: 'id', localKey: 'sm2_changelogs' },
+    { key: 'docs', name: 'docs', idField: 'id', localKey: 'sm2_docs' },
+    { key: 'adminUsers', name: 'adminUsers', idField: 'id', localKey: 'sm2_admin_users' },
+    { key: 'subscribers', name: 'subscribers', idField: 'id', localKey: 'sm2_subscribers' },
+    { key: 'supportTickets', name: 'supportTickets', idField: 'id', localKey: 'sm2_support_tickets' },
+    { key: 'licenses', name: 'licenses', idField: 'id', localKey: 'sm2_licenses' },
+  ];
+
+  for (const col of collectionList) {
+    const items = data[col.key];
+    if (Array.isArray(items) && items.length > 0) {
+      let restored = 0;
+      for (const item of items) {
+        const id = item[col.idField] || item.username || item.email;
+        if (id) {
+          try {
+            await setDoc(doc(db, col.name, String(id)), item);
+            restored++;
+          } catch (err) {
+            console.warn(`Error restoring ${col.name}/${id} to Firestore:`, err);
+          }
+        }
+      }
+      try {
+        localStorage.setItem(col.localKey, JSON.stringify(items));
+      } catch {}
+      counts[col.key] = restored;
+    }
+  }
+
+  // Restore settings if present
+  if (Array.isArray(data['settings_github']) && data['settings_github'].length > 0) {
+    try {
+      await setDoc(doc(db, 'settings', 'github'), data['settings_github'][0]);
+      localStorage.setItem('sm2_github_settings', JSON.stringify(data['settings_github'][0]));
+      counts['settings_github'] = 1;
+    } catch (err) {
+      console.warn('Error restoring github settings:', err);
+    }
+  }
+
+  if (Array.isArray(data['settings_maintenance']) && data['settings_maintenance'].length > 0) {
+    try {
+      await setDoc(doc(db, 'settings', 'maintenance'), data['settings_maintenance'][0]);
+      localStorage.setItem('sm2_maintenance', JSON.stringify(data['settings_maintenance'][0]));
+      counts['settings_maintenance'] = 1;
+    } catch (err) {
+      console.warn('Error restoring maintenance settings:', err);
+    }
+  }
+
+  return { success: true, restoredCounts: counts };
+}
+

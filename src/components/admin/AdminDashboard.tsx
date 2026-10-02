@@ -13,7 +13,7 @@ import {
   LicenseRequest,
 } from '../../types';
 import { translations } from '../../i18n/translations';
-import { exportAllData, type MaintenanceSettings } from '../../lib/firestoreService';
+import { exportAllData, restoreBackupData, type MaintenanceSettings } from '../../lib/firestoreService';
 import {
   Lock,
   UserCheck,
@@ -198,6 +198,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [copiedSitemap, setCopiedSitemap] = useState(false);
   const [copiedRobots, setCopiedRobots] = useState(false);
   const [webNotifTestStatus, setWebNotifTestStatus] = useState<string | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -2636,46 +2638,127 @@ jobs:
                 </div>
               </div>
 
-              {/* Export */}
-              <div className="space-y-3">
-                <h4 className="font-semibold text-sm text-neutral-800 dark:text-neutral-200 flex items-center gap-2">
-                  <Download className="w-4 h-4 text-sky-500" />
-                  {language === 'ar' ? 'تصدير نسخة احتياطية' : 'Export Backup'}
-                </h4>
-                <p className="text-xs text-neutral-500">
-                  {language === 'ar'
-                    ? 'يقوم بتنزيل ملف JSON يحتوي على: المنتجات، التنزيلات، التغييرات، الوثائق، المستخدمين، المشتركين، التذاكر، التراخيص، والإعدادات.'
-                    : 'Downloads a JSON file containing: products, downloads, changelogs, docs, users, subscribers, tickets, licenses, and settings.'}
-                </p>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const btn = document.getElementById('backup-export-btn') as HTMLButtonElement;
-                    if (btn) { btn.disabled = true; btn.textContent = language === 'ar' ? 'جارٍ التصدير...' : 'Exporting...'; }
-                    try {
-                      const data = await exportAllData();
-                      const json = JSON.stringify(data, null, 2);
-                      const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
-                      const url = URL.createObjectURL(blob);
-                      const link = document.createElement('a');
-                      link.href = url;
-                      link.download = `SM2_Backup_${new Date().toISOString().split('T')[0]}.json`;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                      URL.revokeObjectURL(url);
-                    } catch (err) {
-                      alert(language === 'ar' ? 'حدث خطأ أثناء التصدير' : 'Error during export');
-                    } finally {
-                      if (btn) { btn.disabled = false; btn.textContent = language === 'ar' ? '⬇ تنزيل النسخة الاحتياطية الآن' : '⬇ Download Backup Now'; }
-                    }
-                  }}
-                  id="backup-export-btn"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition-colors shadow-sm cursor-pointer"
-                >
-                  <Download className="w-4 h-4" />
-                  {language === 'ar' ? '⬇ تنزيل النسخة الاحتياطية الآن' : '⬇ Download Backup Now'}
-                </button>
+              {/* Export & Restore Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Export */}
+                <div className="space-y-3 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/30">
+                  <h4 className="font-semibold text-sm text-neutral-800 dark:text-neutral-200 flex items-center gap-2">
+                    <Download className="w-4 h-4 text-sky-500" />
+                    {language === 'ar' ? 'تصدير نسخة احتياطية (Export)' : 'Export Backup'}
+                  </h4>
+                  <p className="text-xs text-neutral-500 leading-relaxed">
+                    {language === 'ar'
+                      ? 'يقوم بتنزيل ملف JSON يحتوي على كافة المجموعات: المنتجات، التنزيلات، التغييرات، الوثائق، المستخدمين، المشتركين، التذاكر، التراخيص، وإعدادات المنظومة.'
+                      : 'Downloads a JSON file containing all collections: products, downloads, changelogs, docs, users, subscribers, tickets, licenses, and system settings.'}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const btn = document.getElementById('backup-export-btn') as HTMLButtonElement;
+                      if (btn) { btn.disabled = true; btn.textContent = language === 'ar' ? 'جارٍ التصدير...' : 'Exporting...'; }
+                      try {
+                        const data = await exportAllData();
+                        const json = JSON.stringify(data, null, 2);
+                        const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `SM2_Backup_${new Date().toISOString().split('T')[0]}.json`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                      } catch (err) {
+                        alert(language === 'ar' ? 'حدث خطأ أثناء التصدير' : 'Error during export');
+                      } finally {
+                        if (btn) { btn.disabled = false; btn.textContent = language === 'ar' ? '⬇ تنزيل النسخة الاحتياطية الآن' : '⬇ Download Backup Now'; }
+                      }
+                    }}
+                    id="backup-export-btn"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                  >
+                    <Download className="w-4 h-4" />
+                    {language === 'ar' ? '⬇ تنزيل النسخة الاحتياطية الآن' : '⬇ Download Backup Now'}
+                  </button>
+                </div>
+
+                {/* Restore */}
+                <div className="space-y-3 p-4 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50/50 dark:bg-neutral-800/30">
+                  <h4 className="font-semibold text-sm text-neutral-800 dark:text-neutral-200 flex items-center gap-2">
+                    <Upload className="w-4 h-4 text-emerald-500" />
+                    {language === 'ar' ? 'استعادة نسخة احتياطية (Restore)' : 'Restore Backup'}
+                  </h4>
+                  <p className="text-xs text-neutral-500 leading-relaxed">
+                    {language === 'ar'
+                      ? 'حدد ملف JSON تم تصديره سابقاً لاسترجاع كافة البيانات إلى Firestore والتخزين المحلي بنقرة واحدة.'
+                      : 'Select a previously exported JSON backup file to restore all data back into Firestore and local cache.'}
+                  </p>
+                  <div>
+                    <input
+                      type="file"
+                      id="backup-file-input"
+                      accept=".json,application/json"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const confirmMsg =
+                          language === 'ar'
+                            ? `هل أنت متأكد من استعادة البيانات من الملف "${file.name}"؟ سيتم تحديث قاعدة البيانات بالسجلات الموجودة في الملف.`
+                            : `Are you sure you want to restore data from "${file.name}"? Existing records will be updated with file data.`;
+                        if (!window.confirm(confirmMsg)) {
+                          e.target.value = '';
+                          return;
+                        }
+                        setIsRestoring(true);
+                        setRestoreMessage(null);
+                        try {
+                          const text = await file.text();
+                          const parsed = JSON.parse(text);
+                          const res = await restoreBackupData(parsed);
+                          if (res.success) {
+                            const summary = Object.entries(res.restoredCounts)
+                              .map(([k, v]) => `${k}: ${v}`)
+                              .join(', ');
+                            setRestoreMessage(
+                              language === 'ar'
+                                ? `✅ تمت الاستعادة بنجاح! السجلات المستعادة: (${summary})`
+                                : `✅ Restore completed successfully! Restored: (${summary})`
+                            );
+                          }
+                        } catch (err: any) {
+                          alert(language === 'ar' ? 'خطأ في قراءة أو استعادة الملف: ' + err.message : 'Error reading/restoring file: ' + err.message);
+                        } finally {
+                          setIsRestoring(false);
+                          e.target.value = '';
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      disabled={isRestoring}
+                      onClick={() => document.getElementById('backup-file-input')?.click()}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold transition-colors shadow-sm cursor-pointer"
+                    >
+                      {isRestoring ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>{language === 'ar' ? 'جارٍ الاستعادة...' : 'Restoring...'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4" />
+                          <span>{language === 'ar' ? '⬆ اختيار ملف واستعادة البيانات' : '⬆ Choose File & Restore'}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  {restoreMessage && (
+                    <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-medium">
+                      {restoreMessage}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Divider */}
